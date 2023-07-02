@@ -49,35 +49,28 @@ func metricCreatorHandler(res http.ResponseWriter, req *http.Request) {
 	// Массив с path-параметрами из URL'а
 	path := strings.Split(req.URL.Path[1:], "/")
 
+	// Проверка метода запроса
 	if req.Method != http.MethodPost {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		res.Write([]byte("Only POST-requests available."))
+		http.Error(res, "Only POST-requests available.", http.StatusMethodNotAllowed)
 		return
 	}
 
-	//if req.Header.Get("Content-Type") != "text/plain" {
-	//	res.WriteHeader(http.StatusUnsupportedMediaType)
-	//	res.Write([]byte("Unsupported Media Type, should be text/plain."))
-	//	return
-	//}
-
+	// Проверка корректности URL'а
 	if len(path) != 4 {
-		res.WriteHeader(http.StatusNotFound)
-		res.Write([]byte("Expected format: " +
-			"\rhttp://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>"))
+		http.Error(res, "Expected format: "+
+			"\rhttp://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusNotFound)
 		return
 	}
 
+	// Проверка типа метрики (gauge или counter)
 	if path[1] != "gauge" && path[1] != "counter" {
-		res.WriteHeader(http.StatusBadRequest)
-		res.Write([]byte("Incorrect metric type, gauge or counter is expected."))
+		http.Error(res, "Incorrect metric type, gauge or counter is expected.", http.StatusBadRequest)
 		return
 	} else if path[1] == "counter" {
 		value, err := strconv.ParseInt(path[3], 10, 64)
 		metric = Metric{MName: path[2], MType: "counter", Vcounter: value}
 		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			res.Write([]byte("Can't parse value to counter type (int64)"))
+			http.Error(res, "Can't parse value to counter type (int64)", http.StatusBadRequest)
 		}
 		ms.SetMetric(path[2], &metric)
 		return
@@ -85,8 +78,7 @@ func metricCreatorHandler(res http.ResponseWriter, req *http.Request) {
 		value, err := strconv.ParseFloat(path[3], 64)
 		metric = Metric{MName: path[2], MType: "counter", Vgauge: value}
 		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			res.Write([]byte("Can't parse value to gauge type (float64)"))
+			http.Error(res, "Can't parse value to gauge type (float64)", http.StatusBadRequest)
 		}
 		ms.SetMetric(path[2], &metric)
 		return
@@ -94,7 +86,6 @@ func metricCreatorHandler(res http.ResponseWriter, req *http.Request) {
 
 	res.WriteHeader(http.StatusOK)
 	return
-
 }
 
 func main() {
