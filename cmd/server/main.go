@@ -21,23 +21,23 @@ type MemStorage struct {
 
 // IMemStorage Интрфейс с абстрактным функциями добавления, просмотра и удаления метрик в хранилище
 type IMemStorage interface {
-	SetMetric(name string, m Metric) MemStorage
+	SetMetric(name string, m *Metric) MemStorage
 	GetMetric(name string) Metric
 	DeleteMetric(name string) MemStorage
 }
 
-func (ms MemStorage) SetMetric(name string, m Metric) MemStorage {
-	ms.metrics[name] = m
-	return ms
+func (ms *MemStorage) SetMetric(name string, m *Metric) MemStorage {
+	ms.metrics[name] = *m
+	return *ms
 }
 
-func (ms MemStorage) GetMetric(name string) Metric {
+func (ms *MemStorage) GetMetric(name string) Metric {
 	return ms.metrics[name]
 }
 
-func (ms MemStorage) DeleteMetric(name string) MemStorage {
+func (ms *MemStorage) DeleteMetric(name string) MemStorage {
 	delete(ms.metrics, name)
-	return ms
+	return *ms
 }
 
 func metricCreatorHandler(res http.ResponseWriter, req *http.Request) {
@@ -65,11 +65,13 @@ func metricCreatorHandler(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusNotFound)
 		res.Write([]byte("Expected format: " +
 			"\rhttp://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>"))
+		return
 	}
 
 	if path[1] != "gauge" && path[1] != "counter" {
 		res.WriteHeader(http.StatusBadRequest)
 		res.Write([]byte("Incorrect metric type, gauge or counter is expected."))
+		return
 	} else if path[1] == "counter" {
 		value, err := strconv.ParseInt(path[3], 10, 64)
 		metric = Metric{MName: path[2], MType: "counter", Vcounter: value}
@@ -77,6 +79,8 @@ func metricCreatorHandler(res http.ResponseWriter, req *http.Request) {
 			res.WriteHeader(http.StatusBadRequest)
 			res.Write([]byte("Can't parse value to counter type (int64)"))
 		}
+		ms.SetMetric(path[2], &metric)
+		return
 	} else if path[1] == "gauge" {
 		value, err := strconv.ParseFloat(path[3], 64)
 		metric = Metric{MName: path[2], MType: "counter", Vgauge: value}
@@ -84,10 +88,12 @@ func metricCreatorHandler(res http.ResponseWriter, req *http.Request) {
 			res.WriteHeader(http.StatusBadRequest)
 			res.Write([]byte("Can't parse value to gauge type (float64)"))
 		}
+		ms.SetMetric(path[2], &metric)
+		return
 	}
 
-	ms.SetMetric(path[2], metric)
 	res.WriteHeader(http.StatusOK)
+	return
 
 }
 
