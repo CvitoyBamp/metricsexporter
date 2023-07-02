@@ -55,11 +55,11 @@ func metricCreatorHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if req.Header.Get("Content-Type") != "text/plain" {
-		res.WriteHeader(http.StatusUnsupportedMediaType)
-		res.Write([]byte("Unsupported Media Type, should be text/plain."))
-		return
-	}
+	//if req.Header.Get("Content-Type") != "text/plain" {
+	//	res.WriteHeader(http.StatusUnsupportedMediaType)
+	//	res.Write([]byte("Unsupported Media Type, should be text/plain."))
+	//	return
+	//}
 
 	if len(path) != 4 {
 		res.WriteHeader(http.StatusNotFound)
