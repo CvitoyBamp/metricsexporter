@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func (s *Server) MetricCreatorHandler(res http.ResponseWriter, req *http.Request) {
+func (s *CustomServer) MetricCreatorHandler(res http.ResponseWriter, req *http.Request) {
 
 	// Массив с path-параметрами из URL'а
 	path := strings.Split(req.URL.Path[1:], "/")
@@ -34,14 +34,12 @@ func (s *Server) MetricCreatorHandler(res http.ResponseWriter, req *http.Request
 		if err != nil {
 			http.Error(res, "Can't parse value to counter type (int64)", http.StatusBadRequest)
 		}
-		//fmt.Printf("Counter metric %s with values %s was added.", path[2], path[3])
 		return
 	} else if metricType == "gauge" {
 		err := s.Storage.SetMetric(metricType, metricName, metricValue)
 		if err != nil {
 			http.Error(res, "Can't parse value to gauge type (float64)", http.StatusBadRequest)
 		}
-		//fmt.Printf("Counter metric %s with values %s was added.", path[2], path[3])
 		return
 	}
 

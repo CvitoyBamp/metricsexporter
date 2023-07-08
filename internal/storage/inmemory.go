@@ -40,9 +40,9 @@ func (ms *MemStorage) SetMetric(metricType, metricName, metricValue string) erro
 
 func (ms *MemStorage) GetMetric(metricType, metricName string) (string, error) {
 	if metricType == "counter" {
-		return fmt.Sprintf("Value of metric %s is %s", metricName, ms.counter[metricName]), nil
+		return fmt.Sprintf("Value of metric %s is %d", metricName, ms.counter[metricName]), nil
 	} else if metricType == "gauge" {
-		return fmt.Sprintf("Value of metric %s is %s", metricName, ms.gauge[metricName]), nil
+		return fmt.Sprintf("Value of metric %s is %f", metricName, ms.gauge[metricName]), nil
 	} else {
 		return "", fmt.Errorf("Don't have such metric %s of type %s.", metricName, metricType)
 	}

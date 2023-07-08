@@ -5,24 +5,29 @@ import (
 	"net/http"
 )
 
-type Server struct {
+type CustomServer struct {
+	Server  *http.Server
 	Address string
 	Mux     *http.ServeMux
 	Storage storage.IMemStorage
 }
 
-func CreateServer(address string) *Server {
-	return &Server{
+func CreateServer(address string) *CustomServer {
+	return &CustomServer{
 		Address: address,
 		Storage: storage.CreateMemStorage(),
 	}
 }
 
-func (s *Server) HandlerRegister(path string, handler http.HandlerFunc) {
+func (s *CustomServer) HandlerRegister(path string, handler http.HandlerFunc) {
 	s.Mux = http.NewServeMux()
 	s.Mux.HandleFunc(path, handler)
 }
 
-func (s *Server) RunServer() error {
+func (s *CustomServer) RunServer() error {
 	return http.ListenAndServe(s.Address, s.Mux)
+}
+
+func (s *CustomServer) StopServer() error {
+	return s.Server.Close()
 }

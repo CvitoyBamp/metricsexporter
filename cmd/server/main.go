@@ -9,4 +9,5 @@ func main() {
 	if err != nil {
 		panic("Can't start server")
 	}
+	server.StopServer()
 }
