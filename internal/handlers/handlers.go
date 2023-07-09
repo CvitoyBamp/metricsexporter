@@ -105,8 +105,6 @@ func (s *CustomServer) GetMetricValueHandler(res http.ResponseWriter, req *http.
 	if err != nil {
 		log.Println("can't write answer to response")
 	}
-	return
-
 }
 
 func (s *CustomServer) MetricCreatorHandler(res http.ResponseWriter, req *http.Request) {
@@ -139,5 +137,4 @@ func (s *CustomServer) MetricCreatorHandler(res http.ResponseWriter, req *http.R
 		return
 	}
 	res.WriteHeader(http.StatusOK)
-	return
 }
