@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"github.com/CvitoyBamp/metricsexporter/internal/storage"
+	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,6 +14,7 @@ import (
 type wants struct {
 	code        int
 	contentType string
+	value       string
 }
 
 type request struct {
@@ -42,14 +45,14 @@ func TestMetricCreatorHandler(t *testing.T) {
 			},
 		},
 		{
-			testName: "Not a POST-method",
+			testName: "Not correct URL for a POST-method",
 			request: request{
 				url:    "/update/gauge/testGauge/100",
 				method: http.MethodGet,
 			},
 			wants: wants{
 				code:        http.StatusMethodNotAllowed,
-				contentType: "text/plain; charset=utf-8",
+				contentType: "",
 			},
 		},
 		{
@@ -74,16 +77,57 @@ func TestMetricCreatorHandler(t *testing.T) {
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
+		{
+			testName: "Get metric by Name",
+			request: request{
+				url:    "/value/gauge/testGauge",
+				method: http.MethodGet,
+			},
+			wants: wants{
+				code:        http.StatusOK,
+				contentType: "text/plain; charset=utf-8",
+				value:       "100.000000",
+			},
+		},
+		{
+			testName: "Get unexist metric",
+			request: request{
+				url:    "/value/gauge/UnExistMetric",
+				method: http.MethodGet,
+			},
+			wants: wants{
+				code:        http.StatusNotFound,
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			testName: "Get metrics",
+			request: request{
+				url:    "/",
+				method: http.MethodGet,
+			},
+			wants: wants{
+				code:        http.StatusOK,
+				contentType: "text/html; charset=utf-8",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			r := httptest.NewRequest(tt.request.method, tt.request.url, nil)
-			w := httptest.NewRecorder()
-			s.MetricCreatorHandler(w, r)
+			ts := httptest.NewServer(s.MetricRouter())
+			defer ts.Close()
+			req, err := http.NewRequest(tt.request.method, ts.URL+tt.request.url, nil)
+			resp, err := ts.Client().Do(req)
+			require.NoError(t, err)
 
-			assert.Equal(t, tt.wants.code, w.Code)
-			assert.Equal(t, tt.wants.contentType, w.Header().Get("Content-Type"))
+			assert.Equal(t, tt.wants.code, resp.StatusCode)
+			assert.Equal(t, tt.wants.contentType, resp.Header.Get("Content-Type"))
 
+			if tt.wants.value != "" {
+				body, err := io.ReadAll(resp.Body)
+				require.NoError(t, err)
+				assert.Equal(t, tt.wants.value, string(body))
+			}
 		})
 	}
 }

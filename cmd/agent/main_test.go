@@ -81,17 +81,6 @@ func Test_main(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
 			t.Skipped()
-			//server := *httptest.NewServer(http.HandlerFunc(tt.serverClient.s.MetricCreatorHandler))
-			//client := server.Client()
-			//
-			//url := fmt.Sprintf("http://localhost:8080/%s", tt.request.url)
-			//res, _ := client.Post(url, "text/plain", nil)
-			//
-			//assert.Equal(t, tt.wants.code, res.StatusCode)
-			//assert.Equal(t, tt.wants.contentType, res.Header.Get("Content-Type"))
-			//
-			//server.Close()
-
 		})
 	}
 }

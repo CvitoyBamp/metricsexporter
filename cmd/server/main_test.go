@@ -2,8 +2,13 @@ package main
 
 import (
 	"github.com/CvitoyBamp/metricsexporter/internal/handlers"
+	"github.com/CvitoyBamp/metricsexporter/internal/storage"
+	"github.com/stretchr/testify/require"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type wants struct {
@@ -16,22 +21,19 @@ type request struct {
 	method string
 }
 
-type sc struct {
-	s *handlers.CustomServer
-	c *http.Client
-}
+func TestMetricCreatorHandler(t *testing.T) {
 
-func Test_main(t *testing.T) {
+	s := &handlers.CustomServer{
+		Storage: storage.CreateMemStorage(),
+	}
 
 	tests := []struct {
-		testName     string
-		serverClient sc
-		request      request
-		wants        wants
+		testName string
+		request  request
+		wants    wants
 	}{
 		{
-			testName:     "Metric was successfully added",
-			serverClient: sc{},
+			testName: "Metric was successfully added",
 			request: request{
 				url:    "/update/gauge/testGauge/100",
 				method: http.MethodPost,
@@ -42,20 +44,18 @@ func Test_main(t *testing.T) {
 			},
 		},
 		{
-			testName:     "Not a POST-method",
-			serverClient: sc{},
+			testName: "Not a POST-method",
 			request: request{
 				url:    "/update/gauge/testGauge/100",
 				method: http.MethodGet,
 			},
 			wants: wants{
 				code:        http.StatusMethodNotAllowed,
-				contentType: "text/plain; charset=utf-8",
+				contentType: "",
 			},
 		},
 		{
-			testName:     "Not correct URL",
-			serverClient: sc{},
+			testName: "Not correct URL",
 			request: request{
 				url:    "/update/gauge/",
 				method: http.MethodPost,
@@ -66,8 +66,7 @@ func Test_main(t *testing.T) {
 			},
 		},
 		{
-			testName:     "Can't parse value",
-			serverClient: sc{},
+			testName: "Can't parse value",
 			request: request{
 				url:    "/update/gauge/testGauge/badData",
 				method: http.MethodPost,
@@ -80,17 +79,14 @@ func Test_main(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			t.Skipped()
-			//server := *httptest.NewServer(http.HandlerFunc(tt.serverClient.s.MetricCreatorHandler))
-			//client := server.Client()
-			//
-			//url := fmt.Sprintf("http://localhost:8080/%s", tt.request.url)
-			//res, _ := client.Post(url, "text/plain", nil)
-			//
-			//assert.Equal(t, tt.wants.code, res.StatusCode)
-			//assert.Equal(t, tt.wants.contentType, res.Header.Get("Content-Type"))
-			//
-			//server.Close()
+			ts := httptest.NewServer(s.MetricRouter())
+			defer ts.Close()
+			req, err := http.NewRequest(tt.request.method, ts.URL+tt.request.url, nil)
+			resp, err := ts.Client().Do(req)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.wants.code, resp.StatusCode)
+			assert.Equal(t, tt.wants.contentType, resp.Header.Get("Content-Type"))
 
 		})
 	}

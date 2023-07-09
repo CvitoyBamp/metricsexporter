@@ -40,13 +40,38 @@ func (ms *MemStorage) SetMetric(metricType, metricName, metricValue string) erro
 
 func (ms *MemStorage) GetMetric(metricType, metricName string) (string, error) {
 	if metricType == "counter" {
-		return fmt.Sprintf("Value of metric %s is %d", metricName, ms.counter[metricName]), nil
+		_, ok := ms.counter[metricName]
+		if ok {
+			return fmt.Sprintf("%d", ms.counter[metricName]), nil
+		} else {
+			return "", fmt.Errorf("Don't have metric %s of type %s in storage.", metricName, metricType)
+		}
 	} else if metricType == "gauge" {
-		return fmt.Sprintf("Value of metric %s is %f", metricName, ms.gauge[metricName]), nil
+		_, ok := ms.gauge[metricName]
+		if ok {
+			return fmt.Sprintf("%f", ms.gauge[metricName]), nil
+		} else {
+			return "", fmt.Errorf("Don't have metric %s of type %s in storage.", metricName, metricType)
+		}
 	} else {
-		return "", fmt.Errorf("Don't have such metric %s of type %s.", metricName, metricType)
+		return "", fmt.Errorf("Don't have metric's type %s in storage.", metricType)
 	}
+}
 
+func (ms *MemStorage) GetExistsMetrics() (map[string]string, error) {
+	l := len(ms.gauge) + len(ms.counter)
+	if l != 0 {
+		metricsList := make(map[string]string, l)
+		for k, v := range ms.gauge {
+			metricsList[k] = fmt.Sprintf("%f", v)
+		}
+		for k, v := range ms.counter {
+			metricsList[k] = fmt.Sprintf("%d", v)
+		}
+		return metricsList, nil
+	} else {
+		return nil, fmt.Errorf("No metrics in storage for now.")
+	}
 }
 
 func (ms *MemStorage) DeleteMetric(metricType, metricName string) error {

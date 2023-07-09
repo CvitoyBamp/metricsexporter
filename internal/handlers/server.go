@@ -7,25 +7,20 @@ import (
 
 type CustomServer struct {
 	Server  *http.Server
-	Address string
-	Mux     *http.ServeMux
 	Storage storage.IMemStorage
 }
 
 func CreateServer(address string) *CustomServer {
 	return &CustomServer{
-		Address: address,
+		Server: &http.Server{
+			Addr: address,
+		},
 		Storage: storage.CreateMemStorage(),
 	}
 }
 
-func (s *CustomServer) HandlerRegister(path string, handler http.HandlerFunc) {
-	s.Mux = http.NewServeMux()
-	s.Mux.HandleFunc(path, handler)
-}
-
 func (s *CustomServer) RunServer() error {
-	return http.ListenAndServe(s.Address, s.Mux)
+	return http.ListenAndServe(s.Server.Addr, s.MetricRouter())
 }
 
 func (s *CustomServer) StopServer() error {

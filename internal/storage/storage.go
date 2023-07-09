@@ -4,5 +4,6 @@ package storage
 type IMemStorage interface {
 	SetMetric(metricType, metricName, metricValue string) error
 	GetMetric(metricType, metricName string) (string, error)
+	GetExistsMetrics() (map[string]string, error)
 	DeleteMetric(metricType, metricName string) error
 }
