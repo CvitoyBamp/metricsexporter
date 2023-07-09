@@ -3,7 +3,6 @@ package agent
 import (
 	"fmt"
 	"github.com/CvitoyBamp/metricsexporter/internal/metrics"
-	"io"
 	"log"
 	"net/http"
 	"runtime"
@@ -34,15 +33,11 @@ func CreateAgent(endpoint string) *Agent {
 func (a *Agent) postMetric(metricType, metricName, metricValue string) error {
 	url := fmt.Sprintf("%s/update/%s/%s/%s", a.Endpoint, metricType, metricName, metricValue)
 	res, err := a.Client.Post(url, "text/plain", nil)
+	defer res.Body.Close()
+
 	if err != nil {
 		return fmt.Errorf("can't POST to URL, err: %v", err)
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Fatal("fatal")
-		}
-	}(res.Body)
 
 	log.Printf("metric %s with value %s was successfully posted to %s\n", metricName, metricValue, url)
 

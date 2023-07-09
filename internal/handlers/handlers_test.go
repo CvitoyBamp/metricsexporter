@@ -4,7 +4,6 @@ import (
 	"github.com/CvitoyBamp/metricsexporter/internal/storage"
 	"github.com/stretchr/testify/require"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -119,12 +118,7 @@ func TestMetricCreatorHandler(t *testing.T) {
 			defer ts.Close()
 			req, err := http.NewRequest(tt.request.method, ts.URL+tt.request.url, nil)
 			resp, err2 := ts.Client().Do(req)
-			defer func(Body io.ReadCloser) {
-				err := Body.Close()
-				if err != nil {
-					log.Fatal("fatal")
-				}
-			}(resp.Body)
+			defer resp.Body.Close()
 			require.NoError(t, err)
 			require.NoError(t, err2)
 			assert.Equal(t, tt.wants.code, resp.StatusCode)
