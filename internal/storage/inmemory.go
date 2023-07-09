@@ -24,7 +24,7 @@ func (ms *MemStorage) SetMetric(metricType, metricName, metricValue string) erro
 		if err != nil {
 			return fmt.Errorf("can't parse value to counter type (int64), error: %s", err)
 		}
-		ms.counter[metricName] = value
+		ms.counter[metricName] += value
 	} else if metricType == "gauge" {
 		value, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
