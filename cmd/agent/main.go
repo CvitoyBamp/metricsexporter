@@ -17,11 +17,10 @@ func init() {
 	addressS = flag.String("a", "localhost:8080", "An address the server will send metrics")
 	reportIntervalS = flag.String("r", "10", "An interval for sending metrics to server")
 	pollIntervalS = flag.String("p", "2", "An interval for collecting metrics")
-	flag.Parse()
 }
 
 func main() {
-
+	flag.Parse()
 	pollInterval, err := strconv.Atoi(*pollIntervalS)
 	if err != nil {
 		log.Fatalf("can't parse pollInterval. Err: %s", err)

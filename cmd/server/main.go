@@ -12,10 +12,10 @@ var (
 
 func init() {
 	address = flag.String("a", "localhost:8080", "An address the server run")
-	flag.Parse()
 }
 
 func main() {
+	flag.Parse()
 	server := handlers.CreateServer()
 	log.Fatal(server.RunServer(*address))
 }
