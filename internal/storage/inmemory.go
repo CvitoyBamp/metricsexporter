@@ -22,17 +22,17 @@ func (ms *MemStorage) SetMetric(metricType, metricName, metricValue string) erro
 	if metricType == "counter" {
 		value, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
-			return fmt.Errorf("Can't parse value to counter type (int64), error: %s", err)
+			return fmt.Errorf("can't parse value to counter type (int64), error: %s", err)
 		}
 		ms.counter[metricName] = value
 	} else if metricType == "gauge" {
 		value, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
-			return fmt.Errorf("Can't parse value to gauge type (float64), error: %s", err)
+			return fmt.Errorf("can't parse value to gauge type (float64), error: %s", err)
 		}
 		ms.gauge[metricName] = value
 	} else {
-		return fmt.Errorf("Don't know such type: %s", metricType)
+		return fmt.Errorf("don't know such type: %s", metricType)
 	}
 
 	return nil
@@ -44,17 +44,17 @@ func (ms *MemStorage) GetMetric(metricType, metricName string) (string, error) {
 		if ok {
 			return fmt.Sprintf("%d", ms.counter[metricName]), nil
 		} else {
-			return "", fmt.Errorf("Don't have metric %s of type %s in storage.", metricName, metricType)
+			return "", fmt.Errorf("don't have metric %s of type %s in storage", metricName, metricType)
 		}
 	} else if metricType == "gauge" {
 		_, ok := ms.gauge[metricName]
 		if ok {
 			return strconv.FormatFloat(ms.gauge[metricName], 'f', -1, 64), nil
 		} else {
-			return "", fmt.Errorf("Don't have metric %s of type %s in storage.", metricName, metricType)
+			return "", fmt.Errorf("don't have metric %s of type %s in storage", metricName, metricType)
 		}
 	} else {
-		return "", fmt.Errorf("Don't have metric's type %s in storage.", metricType)
+		return "", fmt.Errorf("don't have metric's type %s in storage", metricType)
 	}
 }
 
@@ -70,7 +70,7 @@ func (ms *MemStorage) GetExistsMetrics() (map[string]string, error) {
 		}
 		return metricsList, nil
 	} else {
-		return nil, fmt.Errorf("No metrics in storage for now.")
+		return nil, fmt.Errorf("no metrics in storage for now")
 	}
 }
 
@@ -80,7 +80,7 @@ func (ms *MemStorage) DeleteMetric(metricType, metricName string) error {
 	} else if metricType == "gauge" {
 		delete(ms.gauge, metricName)
 	} else {
-		fmt.Errorf("Don't have such metric %s of type %s.", metricName, metricType)
+		_ = fmt.Errorf("don't have such metric %s of type %s", metricName, metricType)
 	}
 	return nil
 }

@@ -57,7 +57,7 @@ func (s *CustomServer) MetricRouter() chi.Router {
 	return r
 }
 
-func (s *CustomServer) GetAllMetricsHandler(res http.ResponseWriter, req *http.Request) {
+func (s *CustomServer) GetAllMetricsHandler(res http.ResponseWriter, _ *http.Request) {
 
 	var metricList []MetricsList
 	var metric MetricsList
@@ -78,8 +78,14 @@ func (s *CustomServer) GetAllMetricsHandler(res http.ResponseWriter, req *http.R
 
 	tpl := template.New("Metrics Page")
 	tmpl, err := tpl.Parse(htmlTemplate)
+	if err != nil {
+		log.Print("can't parse template")
+	}
 
-	tmpl.Execute(res, metricList)
+	err2 := tmpl.Execute(res, metricList)
+	if err2 != nil {
+		log.Print("can't create template")
+	}
 }
 
 func (s *CustomServer) GetMetricValueHandler(res http.ResponseWriter, req *http.Request) {
@@ -95,7 +101,10 @@ func (s *CustomServer) GetMetricValueHandler(res http.ResponseWriter, req *http.
 	}
 
 	res.WriteHeader(http.StatusOK)
-	io.WriteString(res, metricValue)
+	_, err = io.WriteString(res, metricValue)
+	if err != nil {
+		log.Println("can't write answer to response")
+	}
 	return
 
 }
