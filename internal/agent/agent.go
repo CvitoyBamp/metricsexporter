@@ -30,32 +30,34 @@ func CreateAgent(endpoint string) *Agent {
 	}
 }
 
-func (a *Agent) postMetric(metricType, metricName, metricValue string) error {
+func (a *Agent) PostMetric(metricType, metricName, metricValue string) error {
 	url := fmt.Sprintf("http://%s/update/%s/%s/%s", a.Endpoint, metricType, metricName, metricValue)
 	res, err := a.Client.Post(url, "text/plain", nil)
 	if err != nil {
+		log.Printf("metric %s with value %s was wasn't posted to %s\n", metricName, metricValue, url)
 		return fmt.Errorf("can't POST to URL, err: %v", err)
 	}
 	defer res.Body.Close()
-	log.Printf("metric %s with value %s was successfully posted to %s\n", metricName, metricValue, url)
 
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("status code not equal 200: %v", res.StatusCode)
 	}
 
-	return fmt.Errorf("can't POST metric to %s", url)
+	log.Printf("metric %s with value %s was successfully posted to %s\n", metricName, metricValue, url)
+
+	return nil
 }
 
-func (a *Agent) postMetrics() {
+func (a *Agent) PostMetrics() {
 	//a.Metrics.Lock()
 	for k, v := range a.Metrics.Gauge {
-		err := a.postMetric("gauge", k, fmt.Sprintf("%f", v))
+		err := a.PostMetric("gauge", k, fmt.Sprintf("%f", v))
 		if err != nil {
 			_ = fmt.Errorf("can't POST to URL, err: %v", err)
 		}
 	}
 	for k, v := range a.Metrics.Counter {
-		err := a.postMetric("counter", k, fmt.Sprintf("%d", v))
+		err := a.PostMetric("counter", k, fmt.Sprintf("%d", v))
 		if err != nil {
 			_ = fmt.Errorf("can't POST to URL, err: %v", err)
 		}
@@ -72,7 +74,7 @@ func (a *Agent) RunAgent(pollInterval, reportInterval int) {
 		case <-pI.C:
 			a.Metrics.MetricGenerator(*a.MemStats)
 		case <-rI.C:
-			a.postMetrics()
+			a.PostMetrics()
 		}
 	}
 }

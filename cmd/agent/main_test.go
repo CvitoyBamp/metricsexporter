@@ -1,9 +1,16 @@
 package main
 
 import (
+	"github.com/CvitoyBamp/metricsexporter/internal/agent"
 	"github.com/CvitoyBamp/metricsexporter/internal/handlers"
+	"github.com/CvitoyBamp/metricsexporter/internal/metrics"
+	"github.com/CvitoyBamp/metricsexporter/internal/storage"
+	"github.com/stretchr/testify/require"
 	"net/http"
+	"net/http/httptest"
+	"runtime"
 	"testing"
+	"time"
 )
 
 type wants struct {
@@ -11,76 +18,55 @@ type wants struct {
 	contentType string
 }
 
-type request struct {
-	url    string
-	method string
-}
-
-type sc struct {
-	s *handlers.CustomServer
-	c *http.Client
+type testMetric struct {
+	metricName  string
+	metricType  string
+	metricValue string
 }
 
 func Test_main(t *testing.T) {
 
+	s := &handlers.CustomServer{
+		Storage: storage.CreateMemStorage(),
+	}
+
+	a := &agent.Agent{
+		Client: &http.Client{
+			Timeout: 1 * time.Second,
+		},
+		MemStats: &runtime.MemStats{},
+		Metrics: &metrics.Metrics{
+			Gauge:   make(map[string]float64),
+			Counter: make(map[string]int64),
+		},
+	}
+
 	tests := []struct {
-		testName     string
-		serverClient sc
-		request      request
-		wants        wants
+		testName   string
+		testMetric testMetric
+		wants      wants
 	}{
 		{
-			testName:     "Metric was successfully added",
-			serverClient: sc{},
-			request: request{
-				url:    "/update/gauge/testGauge/100",
-				method: http.MethodPost,
+			testName: "Metric was successfully pushed",
+			testMetric: testMetric{
+				metricName:  "testGauge",
+				metricType:  "gauge",
+				metricValue: "1.0",
 			},
 			wants: wants{
 				code:        http.StatusOK,
 				contentType: "",
 			},
 		},
-		{
-			testName:     "Not a POST-method",
-			serverClient: sc{},
-			request: request{
-				url:    "/update/gauge/testGauge/100",
-				method: http.MethodGet,
-			},
-			wants: wants{
-				code:        http.StatusMethodNotAllowed,
-				contentType: "text/plain; charset=utf-8",
-			},
-		},
-		{
-			testName:     "Not correct URL",
-			serverClient: sc{},
-			request: request{
-				url:    "/update/gauge/",
-				method: http.MethodPost,
-			},
-			wants: wants{
-				code:        http.StatusNotFound,
-				contentType: "text/plain; charset=utf-8",
-			},
-		},
-		{
-			testName:     "Can't parse value",
-			serverClient: sc{},
-			request: request{
-				url:    "/update/gauge/testGauge/badData",
-				method: http.MethodPost,
-			},
-			wants: wants{
-				code:        http.StatusBadRequest,
-				contentType: "text/plain; charset=utf-8",
-			},
-		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			t.Skipped()
+			ts := httptest.NewServer(s.MetricRouter())
+			defer ts.Close()
+			a.Endpoint = ts.URL[7:]
+			err := a.PostMetric(tt.testMetric.metricType, tt.testMetric.metricName, tt.testMetric.metricValue)
+			require.NoError(t, err)
 		})
 	}
 }
