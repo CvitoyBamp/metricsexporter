@@ -3,34 +3,34 @@ package main
 import (
 	"flag"
 	"github.com/CvitoyBamp/metricsexporter/internal/agent"
+	"github.com/caarlos0/env/v6"
 	"log"
-	"strconv"
 )
 
-var (
-	addressS,
-	reportIntervalS,
-	pollIntervalS *string
-)
-
-func init() {
-	addressS = flag.String("a", "localhost:8080", "An address the server will send metrics")
-	reportIntervalS = flag.String("r", "10", "An interval for sending metrics to server")
-	pollIntervalS = flag.String("p", "2", "An interval for collecting metrics")
+type Config struct {
+	Address        string `env:"ADDRESS"`
+	ReportInterval int    `env:"REPORT_INTERVAL"`
+	PollInterval   int    `env:"POLL_INTERVAL"`
 }
 
 func main() {
+
+	var cfg Config
+
+	flag.IntVar(&cfg.PollInterval, "p", 2,
+		"An interval for collecting metrics")
+	flag.IntVar(&cfg.ReportInterval, "r", 10,
+		"An interval for sending metrics to server")
+	flag.StringVar(&cfg.Address, "a", "localhost:8080",
+		"An address the server will send metrics")
 	flag.Parse()
-	pollInterval, err := strconv.Atoi(*pollIntervalS)
-	if err != nil {
-		log.Fatalf("can't parse pollInterval. Err: %s", err)
-	}
 
-	reportInterval, err := strconv.Atoi(*reportIntervalS)
+	err := env.Parse(&cfg)
 	if err != nil {
-		log.Fatalf("can't parse reportInterval. Err: %s", err)
+		log.Fatal(err)
 	}
+	flag.Parse()
 
-	c := agent.CreateAgent(*addressS)
-	c.RunAgent(pollInterval, reportInterval)
+	c := agent.CreateAgent(cfg.Address)
+	c.RunAgent(cfg.PollInterval, cfg.ReportInterval)
 }
