@@ -6,6 +6,6 @@ import (
 )
 
 func main() {
-	server := handlers.CreateServer(":8080")
+	server := handlers.CreateServer()
 	log.Fatal(server.RunServer())
 }
