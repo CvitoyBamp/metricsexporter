@@ -31,7 +31,7 @@ func CreateAgent(endpoint string) *Agent {
 }
 
 func (a *Agent) postMetric(metricType, metricName, metricValue string) error {
-	url := fmt.Sprintf("%s/update/%s/%s/%s", a.Endpoint, metricType, metricName, metricValue)
+	url := fmt.Sprintf("http://%s/update/%s/%s/%s", a.Endpoint, metricType, metricName, metricValue)
 	res, err := a.Client.Post(url, "text/plain", nil)
 	if err != nil {
 		return fmt.Errorf("can't POST to URL, err: %v", err)
