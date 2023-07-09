@@ -118,9 +118,9 @@ func TestMetricCreatorHandler(t *testing.T) {
 			defer ts.Close()
 			req, err := http.NewRequest(tt.request.method, ts.URL+tt.request.url, nil)
 			resp, err2 := ts.Client().Do(req)
-			defer resp.Body.Close()
 			require.NoError(t, err)
 			require.NoError(t, err2)
+			defer resp.Body.Close()
 			assert.Equal(t, tt.wants.code, resp.StatusCode)
 			assert.Equal(t, tt.wants.contentType, resp.Header.Get("Content-Type"))
 
