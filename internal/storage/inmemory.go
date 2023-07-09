@@ -49,7 +49,7 @@ func (ms *MemStorage) GetMetric(metricType, metricName string) (string, error) {
 	} else if metricType == "gauge" {
 		_, ok := ms.gauge[metricName]
 		if ok {
-			return fmt.Sprintf("%f", ms.gauge[metricName]), nil
+			return strconv.FormatFloat(ms.gauge[metricName], 'f', -1, 64), nil
 		} else {
 			return "", fmt.Errorf("Don't have metric %s of type %s in storage.", metricName, metricType)
 		}
