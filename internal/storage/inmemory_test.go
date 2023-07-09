@@ -83,7 +83,7 @@ func TestMemStorage_GetMetric(t *testing.T) {
 			wants: metric{
 				metricName:     "testGauge",
 				metricType:     "gauge",
-				metricStrValue: "Value of metric testGauge is 1.000000",
+				metricStrValue: "1.000000",
 			},
 		},
 		{
@@ -97,7 +97,7 @@ func TestMemStorage_GetMetric(t *testing.T) {
 			wants: metric{
 				metricName:     "testCounter",
 				metricType:     "counter",
-				metricStrValue: "Value of metric testCounter is 1",
+				metricStrValue: "1",
 			},
 		},
 	}
