@@ -3,10 +3,12 @@ package storage
 import (
 	"fmt"
 	"strconv"
+	"sync"
 )
 
 // MemStorage In-memory хранилище метрик
 type MemStorage struct {
+	sync.RWMutex
 	gauge   map[string]float64
 	counter map[string]int64
 }
@@ -24,13 +26,17 @@ func (ms *MemStorage) SetMetric(metricType, metricName, metricValue string) erro
 		if err != nil {
 			return fmt.Errorf("can't parse value to counter type (int64), error: %s", err)
 		}
+		ms.Lock()
 		ms.counter[metricName] += value
+		ms.Unlock()
 	} else if metricType == "gauge" {
 		value, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			return fmt.Errorf("can't parse value to gauge type (float64), error: %s", err)
 		}
+		ms.Lock()
 		ms.gauge[metricName] = value
+		ms.Unlock()
 	} else {
 		return fmt.Errorf("don't know such type: %s", metricType)
 	}
@@ -40,16 +46,26 @@ func (ms *MemStorage) SetMetric(metricType, metricName, metricValue string) erro
 
 func (ms *MemStorage) GetMetric(metricType, metricName string) (string, error) {
 	if metricType == "counter" {
+		ms.RLock()
 		_, ok := ms.counter[metricName]
+		ms.RUnlock()
 		if ok {
-			return fmt.Sprintf("%d", ms.counter[metricName]), nil
+			ms.RLock()
+			val := ms.counter[metricName]
+			ms.RUnlock()
+			return fmt.Sprintf("%d", val), nil
 		} else {
 			return "", fmt.Errorf("don't have metric %s of type %s in storage", metricName, metricType)
 		}
 	} else if metricType == "gauge" {
+		ms.RLock()
 		_, ok := ms.gauge[metricName]
+		ms.RUnlock()
 		if ok {
-			return strconv.FormatFloat(ms.gauge[metricName], 'f', -1, 64), nil
+			ms.RLock()
+			val := ms.gauge[metricName]
+			ms.RUnlock()
+			return strconv.FormatFloat(val, 'f', -1, 64), nil
 		} else {
 			return "", fmt.Errorf("don't have metric %s of type %s in storage", metricName, metricType)
 		}
@@ -62,12 +78,14 @@ func (ms *MemStorage) GetExistsMetrics() (map[string]string, error) {
 	l := len(ms.gauge) + len(ms.counter)
 	if l != 0 {
 		metricsList := make(map[string]string, l)
+		ms.Lock()
 		for k, v := range ms.gauge {
 			metricsList[k] = fmt.Sprintf("%f", v)
 		}
 		for k, v := range ms.counter {
 			metricsList[k] = fmt.Sprintf("%d", v)
 		}
+		ms.Unlock()
 		return metricsList, nil
 	} else {
 		return nil, fmt.Errorf("no metrics in storage for now")

@@ -8,7 +8,7 @@ import (
 )
 
 type Metrics struct {
-	sync.Mutex
+	sync.RWMutex
 	Gauge   map[string]float64
 	Counter map[string]int64
 }
@@ -42,11 +42,13 @@ func getRuntimeMetrics(m *runtime.MemStats) map[string]float64 {
 func (ms *Metrics) MetricGenerator(rm runtime.MemStats) *Metrics {
 	runtime.ReadMemStats(&rm)
 
+	ms.Lock()
 	for k, v := range getRuntimeMetrics(&rm) {
 		ms.Gauge[k] = v
 	}
 	ms.Gauge["RandomValue"] = rand.Float64()
 	ms.Counter["PollCount"] += 1
+	ms.Unlock()
 
 	return ms
 }

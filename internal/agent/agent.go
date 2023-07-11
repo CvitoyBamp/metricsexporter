@@ -12,7 +12,6 @@ import (
 type Agent struct {
 	Client   *http.Client
 	Endpoint string
-	MemStats *runtime.MemStats
 	Metrics  *metrics.Metrics
 }
 
@@ -22,7 +21,6 @@ func CreateAgent(endpoint string) *Agent {
 			Timeout: 1 * time.Second,
 		},
 		Endpoint: endpoint,
-		MemStats: &runtime.MemStats{},
 		Metrics: &metrics.Metrics{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
@@ -49,7 +47,6 @@ func (a *Agent) PostMetric(metricType, metricName, metricValue string) error {
 }
 
 func (a *Agent) PostMetrics() {
-	//a.Metrics.Lock()
 	for k, v := range a.Metrics.Gauge {
 		err := a.PostMetric("gauge", k, fmt.Sprintf("%f", v))
 		if err != nil {
@@ -62,7 +59,6 @@ func (a *Agent) PostMetrics() {
 			_ = fmt.Errorf("can't POST to URL, err: %v", err)
 		}
 	}
-	//a.Metrics.Unlock()
 }
 
 func (a *Agent) RunAgent(pollInterval, reportInterval int) {
@@ -72,7 +68,7 @@ func (a *Agent) RunAgent(pollInterval, reportInterval int) {
 	for {
 		select {
 		case <-pI.C:
-			a.Metrics.MetricGenerator(*a.MemStats)
+			a.Metrics.MetricGenerator(runtime.MemStats{})
 		case <-rI.C:
 			a.PostMetrics()
 		}

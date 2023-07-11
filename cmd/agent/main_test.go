@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -34,7 +33,6 @@ func Test_main(t *testing.T) {
 		Client: &http.Client{
 			Timeout: 1 * time.Second,
 		},
-		MemStats: &runtime.MemStats{},
 		Metrics: &metrics.Metrics{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),

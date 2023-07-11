@@ -80,12 +80,16 @@ func (s *CustomServer) GetAllMetricsHandler(res http.ResponseWriter, _ *http.Req
 	tmpl, err := tpl.Parse(htmlTemplate)
 	if err != nil {
 		log.Print("can't parse template")
+		http.Error(res, "can't parse template", http.StatusInternalServerError)
 	}
 
-	err2 := tmpl.Execute(res, metricList)
-	if err2 != nil {
+	tmplerr := tmpl.Execute(res, metricList)
+	if tmplerr != nil {
 		log.Print("can't create template")
+		http.Error(res, "can't parse template", http.StatusInternalServerError)
 	}
+
+	return
 }
 
 func (s *CustomServer) GetMetricValueHandler(res http.ResponseWriter, req *http.Request) {
