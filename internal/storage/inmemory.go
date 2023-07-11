@@ -47,24 +47,18 @@ func (ms *MemStorage) SetMetric(metricType, metricName, metricValue string) erro
 func (ms *MemStorage) GetMetric(metricType, metricName string) (string, error) {
 	if metricType == "counter" {
 		ms.RLock()
+		defer ms.RUnlock()
 		_, ok := ms.counter[metricName]
-		ms.RUnlock()
 		if ok {
-			ms.RLock()
 			val := ms.counter[metricName]
-			ms.RUnlock()
 			return fmt.Sprintf("%d", val), nil
 		} else {
 			return "", fmt.Errorf("don't have metric %s of type %s in storage", metricName, metricType)
 		}
 	} else if metricType == "gauge" {
-		ms.RLock()
 		_, ok := ms.gauge[metricName]
-		ms.RUnlock()
 		if ok {
-			ms.RLock()
 			val := ms.gauge[metricName]
-			ms.RUnlock()
 			return strconv.FormatFloat(val, 'f', -1, 64), nil
 		} else {
 			return "", fmt.Errorf("don't have metric %s of type %s in storage", metricName, metricType)
@@ -79,13 +73,13 @@ func (ms *MemStorage) GetExistsMetrics() (map[string]string, error) {
 	if l != 0 {
 		metricsList := make(map[string]string, l)
 		ms.Lock()
+		defer ms.Unlock()
 		for k, v := range ms.gauge {
 			metricsList[k] = fmt.Sprintf("%f", v)
 		}
 		for k, v := range ms.counter {
 			metricsList[k] = fmt.Sprintf("%d", v)
 		}
-		ms.Unlock()
 		return metricsList, nil
 	} else {
 		return nil, fmt.Errorf("no metrics in storage for now")

@@ -13,24 +13,33 @@ type Metrics struct {
 	Counter map[string]int64
 }
 
-func getRuntimeMetrics(m *runtime.MemStats) map[string]float64 {
+type RuntimeMetrics struct {
+	sync.RWMutex
+	m map[string]float64
+}
+
+func getRuntimeMetrics(m *runtime.MemStats) *RuntimeMetrics {
 	metrics := reflect.ValueOf(m)
-	runtimeMetrics := make(map[string]float64)
+	runtimeMetrics := &RuntimeMetrics{
+		m: make(map[string]float64),
+	}
 
 	if metrics.Kind() == reflect.Ptr {
 		metrics = metrics.Elem()
 	}
 
+	runtimeMetrics.Lock()
+	defer runtimeMetrics.Unlock()
 	for i := 0; i < metrics.NumField(); i++ {
 		metricName := metrics.Type().Field(i).Name
 		metricValue := reflect.Indirect(metrics).FieldByName(metricName)
 		switch metricValue.Type().Name() {
 		case "float64":
-			runtimeMetrics[metricName] = metricValue.Interface().(float64)
+			runtimeMetrics.m[metricName] = metricValue.Interface().(float64)
 		case "uint64":
-			runtimeMetrics[metricName] = float64(metricValue.Interface().(uint64))
+			runtimeMetrics.m[metricName] = float64(metricValue.Interface().(uint64))
 		case "uint32":
-			runtimeMetrics[metricName] = float64(metricValue.Interface().(uint32))
+			runtimeMetrics.m[metricName] = float64(metricValue.Interface().(uint32))
 		default:
 			continue
 		}
@@ -43,7 +52,7 @@ func (ms *Metrics) MetricGenerator(rm runtime.MemStats) *Metrics {
 	runtime.ReadMemStats(&rm)
 
 	ms.Lock()
-	for k, v := range getRuntimeMetrics(&rm) {
+	for k, v := range getRuntimeMetrics(&rm).m {
 		ms.Gauge[k] = v
 	}
 	ms.Gauge["RandomValue"] = rand.Float64()

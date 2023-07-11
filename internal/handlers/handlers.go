@@ -88,8 +88,6 @@ func (s *CustomServer) GetAllMetricsHandler(res http.ResponseWriter, _ *http.Req
 		log.Print("can't create template")
 		http.Error(res, "can't parse template", http.StatusInternalServerError)
 	}
-
-	return
 }
 
 func (s *CustomServer) GetMetricValueHandler(res http.ResponseWriter, req *http.Request) {

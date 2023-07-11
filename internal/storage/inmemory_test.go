@@ -2,6 +2,7 @@ package storage
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -53,11 +54,13 @@ func TestMemStorage_SetMetric(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
 			if tt.dataMetric.metricType == "gauge" {
-				tt.ms.SetMetric(tt.dataMetric.metricType, tt.dataMetric.metricName, tt.dataMetric.metricStrValue)
+				err := tt.ms.SetMetric(tt.dataMetric.metricType, tt.dataMetric.metricName, tt.dataMetric.metricStrValue)
+				require.NoError(t, err)
 				//tt.ms.gauge[tt.wants.metricName] = tt.wants.metricGaugeValue
 				assert.Equal(t, tt.wants.metricGaugeValue, tt.ms.gauge[tt.dataMetric.metricName])
 			} else if tt.dataMetric.metricType == "counter" {
-				tt.ms.SetMetric(tt.dataMetric.metricType, tt.dataMetric.metricName, tt.dataMetric.metricStrValue)
+				err := tt.ms.SetMetric(tt.dataMetric.metricType, tt.dataMetric.metricName, tt.dataMetric.metricStrValue)
+				require.NoError(t, err)
 				//tt.ms.counter[tt.wants.metricName] = tt.wants.metricCounterValue
 				assert.Equal(t, tt.wants.metricCounterValue, tt.ms.counter[tt.wants.metricName])
 			}
