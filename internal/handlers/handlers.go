@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	cors2 "github.com/go-chi/cors"
 	"html/template"
 	"io"
@@ -42,14 +41,13 @@ func (s *CustomServer) MetricRouter() chi.Router {
 
 	r.Group(func(r chi.Router) {
 		r.Use(cors.Handler)
-		r.Use(middleware.Logger)
 		r.Route("/", func(r chi.Router) {
-			r.Get("/", s.GetAllMetricsHandler)
+			r.Get("/", Logging(s.GetAllMetricsHandler()))
 			r.Route("/value", func(r chi.Router) {
-				r.Get("/{metricType}/{metricName}", s.GetMetricValueHandler)
+				r.Get("/{metricType}/{metricName}", Logging(s.GetMetricValueHandler()))
 			})
 			r.Route("/update", func(r chi.Router) {
-				r.Post("/{metricType}/{metricName}/{metricValue}", s.MetricCreatorHandler)
+				r.Post("/{metricType}/{metricName}/{metricValue}", Logging(s.MetricCreatorHandler()))
 			})
 		})
 	})
@@ -57,86 +55,97 @@ func (s *CustomServer) MetricRouter() chi.Router {
 	return r
 }
 
-func (s *CustomServer) GetAllMetricsHandler(res http.ResponseWriter, _ *http.Request) {
+func (s *CustomServer) GetAllMetricsHandler() http.Handler {
+	fn := func(res http.ResponseWriter, _ *http.Request) {
+		var metricList []MetricsList
+		var metric MetricsList
+		list, err := s.Storage.GetExistsMetrics()
 
-	var metricList []MetricsList
-	var metric MetricsList
-	list, err := s.Storage.GetExistsMetrics()
-
-	if err != nil {
-		http.Error(res, "No metrics in storage", http.StatusNotFound)
-		return
-	}
-
-	for k, v := range list {
-		metric.MetricValue = v
-		metric.MetricName = k
-		metricList = append(metricList, metric)
-	}
-
-	fmt.Println(metricList)
-
-	tpl := template.New("Metrics Page")
-	tmpl, err := tpl.Parse(htmlTemplate)
-	if err != nil {
-		log.Print("can't parse template")
-		http.Error(res, "can't parse template", http.StatusInternalServerError)
-	}
-
-	tmplerr := tmpl.Execute(res, metricList)
-	if tmplerr != nil {
-		log.Print("can't create template")
-		http.Error(res, "can't parse template", http.StatusInternalServerError)
-	}
-}
-
-func (s *CustomServer) GetMetricValueHandler(res http.ResponseWriter, req *http.Request) {
-	metricType := chi.URLParam(req, "metricType")
-	metricName := chi.URLParam(req, "metricName")
-
-	metricValue, err := s.Storage.GetMetric(metricType, metricName)
-
-	if err != nil {
-		log.Printf("No such metric in storage: %s", metricName)
-		http.Error(res, "No such metric in storage", http.StatusNotFound)
-		return
-	}
-
-	res.WriteHeader(http.StatusOK)
-	_, err = io.WriteString(res, metricValue)
-	if err != nil {
-		log.Println("can't write answer to response")
-	}
-}
-
-func (s *CustomServer) MetricCreatorHandler(res http.ResponseWriter, req *http.Request) {
-	metricType := chi.URLParam(req, "metricType")
-	metricName := chi.URLParam(req, "metricName")
-	metricValue := chi.URLParam(req, "metricValue")
-
-	// Проверка типа метрики (gauge или counter)
-	if metricType != "gauge" && metricType != "counter" {
-		http.Error(res, "Incorrect metric type, gauge or counter is expected.", http.StatusBadRequest)
-		log.Printf("Incorrect metric type recieved: %s", metricType)
-		return
-	} else if metricType == "counter" {
-		err := s.Storage.SetMetric(metricType, metricName, metricValue)
 		if err != nil {
-			http.Error(res, "Can't parse value to counter type (int64)", http.StatusBadRequest)
-			log.Printf("Can't parse value %s to counter type (int64)", metricValue)
+			http.Error(res, "No metrics in storage", http.StatusNotFound)
 			return
 		}
-		log.Printf("Metric %s of type %s with value %s was successfully added", metricName, metricType, metricValue)
-		return
-	} else if metricType == "gauge" {
-		err := s.Storage.SetMetric(metricType, metricName, metricValue)
+
+		for k, v := range list {
+			metric.MetricValue = v
+			metric.MetricName = k
+			metricList = append(metricList, metric)
+		}
+
+		fmt.Println(metricList)
+
+		tpl := template.New("Metrics Page")
+		tmpl, err := tpl.Parse(htmlTemplate)
 		if err != nil {
-			http.Error(res, "Can't parse value to gauge type (float64)", http.StatusBadRequest)
-			log.Printf("Can't parse value %s to gauge type (float64)", metricValue)
+			log.Print("can't parse template")
+			http.Error(res, "can't parse template", http.StatusInternalServerError)
+		}
+
+		tmplerr := tmpl.Execute(res, metricList)
+		if tmplerr != nil {
+			log.Print("can't create template")
+			http.Error(res, "can't parse template", http.StatusInternalServerError)
+		}
+
+		res.WriteHeader(http.StatusOK)
+	}
+	return http.HandlerFunc(fn)
+}
+
+func (s *CustomServer) GetMetricValueHandler() http.Handler {
+	fn := func(res http.ResponseWriter, req *http.Request) {
+		metricType := chi.URLParam(req, "metricType")
+		metricName := chi.URLParam(req, "metricName")
+
+		metricValue, err := s.Storage.GetMetric(metricType, metricName)
+
+		if err != nil {
+			log.Printf("No such metric in storage: %s", metricName)
+			http.Error(res, "No such metric in storage", http.StatusNotFound)
 			return
 		}
-		log.Printf("Metric %s of type %s with value %s was successfully added", metricName, metricType, metricValue)
-		return
+
+		res.WriteHeader(http.StatusOK)
+		_, err = io.WriteString(res, metricValue)
+		if err != nil {
+			log.Println("can't write answer to response")
+		}
 	}
-	res.WriteHeader(http.StatusOK)
+	return http.HandlerFunc(fn)
+}
+
+func (s *CustomServer) MetricCreatorHandler() http.Handler {
+	fn := func(res http.ResponseWriter, req *http.Request) {
+		metricType := chi.URLParam(req, "metricType")
+		metricName := chi.URLParam(req, "metricName")
+		metricValue := chi.URLParam(req, "metricValue")
+
+		// Проверка типа метрики (gauge или counter)
+		if metricType != "gauge" && metricType != "counter" {
+			http.Error(res, "Incorrect metric type, gauge or counter is expected.", http.StatusBadRequest)
+			log.Printf("Incorrect metric type recieved: %s", metricType)
+			return
+		} else if metricType == "counter" {
+			err := s.Storage.SetMetric(metricType, metricName, metricValue)
+			if err != nil {
+				http.Error(res, "Can't parse value to counter type (int64)", http.StatusBadRequest)
+				log.Printf("Can't parse value %s to counter type (int64)", metricValue)
+				return
+			}
+			res.WriteHeader(http.StatusOK)
+			log.Printf("Metric %s of type %s with value %s was successfully added", metricName, metricType, metricValue)
+			return
+		} else if metricType == "gauge" {
+			err := s.Storage.SetMetric(metricType, metricName, metricValue)
+			if err != nil {
+				http.Error(res, "Can't parse value to gauge type (float64)", http.StatusBadRequest)
+				log.Printf("Can't parse value %s to gauge type (float64)", metricValue)
+				return
+			}
+			res.WriteHeader(http.StatusOK)
+			log.Printf("Metric %s of type %s with value %s was successfully added", metricName, metricType, metricValue)
+			return
+		}
+	}
+	return http.HandlerFunc(fn)
 }
