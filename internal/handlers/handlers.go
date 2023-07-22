@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 type MetricsList struct {
@@ -130,28 +131,32 @@ func (s *CustomServer) CreateJSONMetricHandler() http.Handler {
 	fn := func(res http.ResponseWriter, req *http.Request) {
 
 		data := util.JSONParser(res, req)
+		log.Println(*data.Value)
 
 		if data.MType != "gauge" && data.MType != "counter" {
 			http.Error(res, "Incorrect metric type, gauge or counter is expected.", http.StatusBadRequest)
+			log.Println("Incorrect metric type, gauge or counter is expected.")
+			return
 		} else if data.MType == "gauge" {
-			err := s.CheckAndSetMetric(data.MType, data.ID, fmt.Sprintf("%f", *data.Value))
+			err := s.CheckAndSetMetric(data.MType, data.ID, strconv.FormatFloat(*data.Value, 'f', -1, 64))
 			if err != nil {
 				http.Error(res, fmt.Sprintf("%s.", err), http.StatusBadRequest)
-				log.Println("залупа")
+				log.Println("can't add metric to storage")
 				return
 			}
 		} else if data.MType == "counter" {
-			err := s.CheckAndSetMetric(data.MType, data.ID, fmt.Sprintf("%d", *data.Delta))
+			err := s.CheckAndSetMetric(data.MType, data.ID, strconv.FormatInt(*data.Delta, 10))
 			if err != nil {
 				http.Error(res, fmt.Sprintf("%s.", err), http.StatusBadRequest)
-				log.Println("залупа")
+				log.Println("can't add metric to storage")
 				return
 			}
-			res.WriteHeader(http.StatusOK)
-			res.Header().Set("Content-Type", "application/json")
-			log.Printf("Metric %s of type %s was successfully added", data.ID, data.MType)
-			return
 		}
+
+		res.WriteHeader(http.StatusOK)
+		res.Header().Set("Content-Type", "application/json")
+		log.Printf("Metric %s of type %s was successfully added", data.ID, data.MType)
+		return
 
 	}
 	return http.HandlerFunc(fn)
