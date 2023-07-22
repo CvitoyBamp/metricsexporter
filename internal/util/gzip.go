@@ -23,7 +23,7 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-func MiddlewareZIP(h http.Handler) http.HandlerFunc {
+func MiddlewareZIP(h http.Handler) http.Handler {
 	zip := func(res http.ResponseWriter, req *http.Request) {
 
 		if !strings.Contains(req.Header.Get("Content-Type"), "application/json") &&
@@ -44,18 +44,18 @@ func MiddlewareZIP(h http.Handler) http.HandlerFunc {
 		}
 		defer gz.Close()
 
-		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
-			req.Body, err = gzip.NewReader(req.Body)
-			if err != nil {
-				http.Error(res, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		}
+		//if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
+		//	req.Body, err = gzip.NewReader(req.Body)
+		//	if err != nil {
+		//		http.Error(res, err.Error(), http.StatusInternalServerError)
+		//		return
+		//	}
+		//}
 
 		res.Header().Set("Content-Encoding", "gzip")
 		h.ServeHTTP(gzipWriter{ResponseWriter: res, Writer: gz}, req)
 	}
-	return zip
+	return http.HandlerFunc(zip)
 }
 
 func Compress(data []byte) ([]byte, error) {

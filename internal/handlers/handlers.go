@@ -44,19 +44,22 @@ func (s *CustomServer) MetricRouter() chi.Router {
 	r := chi.NewRouter()
 	cors := cors2.New(cors2.Options{
 		AllowedMethods: []string{http.MethodPost, http.MethodGet},
-		AllowedHeaders: []string{"Content-Type"},
+		AllowedHeaders: []string{"Content-Type", "Content-Encoding", "Accept-Encoding"},
 	})
+
+	//compressor := middleware.Compress(5, "application/json", "text/html")
 
 	r.Group(func(r chi.Router) {
 		r.Use(cors.Handler)
+		r.Use(util.MiddlewareZIP)
 		r.Route("/", func(r chi.Router) {
 			r.Get("/", util.Logging(s.GetAllMetricsHandler()))
 			r.Route("/value", func(r chi.Router) {
-				r.Post("/", util.Logging(util.MiddlewareZIP(s.GetJSONMetricHandler())))
+				r.Post("/", util.Logging(s.GetJSONMetricHandler()))
 				r.Get("/{metricType}/{metricName}", util.Logging(s.GetMetricValueHandler()))
 			})
 			r.Route("/update", func(r chi.Router) {
-				r.Post("/", util.Logging(util.MiddlewareZIP(s.CreateJSONMetricHandler())))
+				r.Post("/", util.Logging(s.CreateJSONMetricHandler()))
 				r.Post("/{metricType}/{metricName}/{metricValue}", util.Logging(s.MetricCreatorHandler()))
 			})
 		})
