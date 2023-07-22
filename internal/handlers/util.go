@@ -8,21 +8,13 @@ import (
 	"net/http"
 )
 
-func (s *CustomServer) CheckAndSetMetric(metricType, metricName, metricValue string, res http.ResponseWriter) {
+func (s *CustomServer) CheckAndSetMetric(metricType, metricName, metricValue string) error {
 	// Проверка типа метрики (gauge или counter)
 	if metricType != "gauge" && metricType != "counter" {
-		http.Error(res, "Incorrect metric type, gauge or counter is expected.", http.StatusBadRequest)
 		log.Printf("Incorrect metric type recieved: %s", metricType)
+		return fmt.Errorf("incorrect metric type, gauge or counter is expected")
 	}
-
-	err := s.Storage.SetMetric(metricType, metricName, metricValue)
-	if err != nil {
-		http.Error(res, fmt.Sprintf("Can't parse value to %s type.", metricType), http.StatusBadRequest)
-		log.Printf("Can't parse value %s to %s type.", metricValue, metricType)
-	}
-	res.WriteHeader(http.StatusOK)
-	res.Header().Set("Content-Type", "application/json")
-	log.Printf("Metric %s of type %s with value %s was successfully added", metricName, metricType, metricValue)
+	return s.Storage.SetMetric(metricType, metricName, metricValue)
 }
 
 func (s *CustomServer) GetMetric(metricType, metricName string, res http.ResponseWriter, req *http.Request) {
@@ -34,7 +26,7 @@ func (s *CustomServer) GetMetric(metricType, metricName string, res http.Respons
 	}
 
 	if req.Header.Get("Content-Type") == "application/json" {
-		resp, respErr := util.JsonCreator(metricValue, metricType, metricName)
+		resp, respErr := util.JSONCreator(metricValue, metricType, metricName)
 		log.Println(string(resp))
 		if respErr != nil {
 			http.Error(res, "can't parse data as json", http.StatusBadRequest)

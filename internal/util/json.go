@@ -15,7 +15,7 @@ type JSONMetrics struct {
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
 
-func JsonParser(res http.ResponseWriter, req *http.Request) *JSONMetrics {
+func JSONParser(res http.ResponseWriter, req *http.Request) *JSONMetrics {
 
 	var jsonStruct JSONMetrics
 
@@ -36,7 +36,7 @@ func JsonParser(res http.ResponseWriter, req *http.Request) *JSONMetrics {
 	return &jsonStruct
 }
 
-func JsonCreator(metricValue, metricType, metricName string) ([]byte, error) {
+func JSONCreator(metricValue, metricType, metricName string) ([]byte, error) {
 	var cData JSONMetrics
 	var gData JSONMetrics
 

@@ -44,7 +44,7 @@ func TestJsonCreator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			res, err := JsonCreator(tt.data.metricValue, tt.data.metricType, tt.data.metricName)
+			res, err := JSONCreator(tt.data.metricValue, tt.data.metricType, tt.data.metricName)
 			require.NoError(t, err)
 			assert.Equal(t, tt.res, string(res))
 		})

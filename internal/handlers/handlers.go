@@ -88,12 +88,14 @@ func (s *CustomServer) GetAllMetricsHandler() http.Handler {
 		if err != nil {
 			log.Print("can't parse template")
 			http.Error(res, "can't parse template", http.StatusInternalServerError)
+			return
 		}
 
 		tmplerr := tmpl.Execute(res, metricList)
 		if tmplerr != nil {
 			log.Print("can't create template")
 			http.Error(res, "can't parse template", http.StatusInternalServerError)
+			return
 		}
 
 		res.WriteHeader(http.StatusOK)
@@ -115,7 +117,11 @@ func (s *CustomServer) MetricCreatorHandler() http.Handler {
 		metricType := chi.URLParam(req, "metricType")
 		metricName := chi.URLParam(req, "metricName")
 		metricValue := chi.URLParam(req, "metricValue")
-		s.CheckAndSetMetric(metricType, metricName, metricValue, res)
+		err := s.CheckAndSetMetric(metricType, metricName, metricValue)
+		if err != nil {
+			http.Error(res, fmt.Sprintf("%s.", err), http.StatusBadRequest)
+			return
+		}
 	}
 	return http.HandlerFunc(fn)
 }
@@ -123,24 +129,37 @@ func (s *CustomServer) MetricCreatorHandler() http.Handler {
 func (s *CustomServer) CreateJSONMetricHandler() http.Handler {
 	fn := func(res http.ResponseWriter, req *http.Request) {
 
-		data := util.JsonParser(res, req)
+		data := util.JSONParser(res, req)
 
 		if data.MType != "gauge" && data.MType != "counter" {
 			http.Error(res, "Incorrect metric type, gauge or counter is expected.", http.StatusBadRequest)
-			log.Printf("Incorrect metric type recieved: %s", data.MType)
-			return
 		} else if data.MType == "gauge" {
-			s.CheckAndSetMetric(data.MType, data.ID, fmt.Sprintf("%f", *data.Value), res)
+			err := s.CheckAndSetMetric(data.MType, data.ID, fmt.Sprintf("%f", *data.Value))
+			if err != nil {
+				http.Error(res, fmt.Sprintf("%s.", err), http.StatusBadRequest)
+				log.Println("залупа")
+				return
+			}
 		} else if data.MType == "counter" {
-			s.CheckAndSetMetric(data.MType, data.ID, fmt.Sprintf("%d", *data.Delta), res)
+			err := s.CheckAndSetMetric(data.MType, data.ID, fmt.Sprintf("%d", *data.Delta))
+			if err != nil {
+				http.Error(res, fmt.Sprintf("%s.", err), http.StatusBadRequest)
+				log.Println("залупа")
+				return
+			}
+			res.WriteHeader(http.StatusOK)
+			res.Header().Set("Content-Type", "application/json")
+			log.Printf("Metric %s of type %s was successfully added", data.ID, data.MType)
+			return
 		}
+
 	}
 	return http.HandlerFunc(fn)
 }
 
 func (s *CustomServer) GetJSONMetricHandler() http.Handler {
 	fn := func(res http.ResponseWriter, req *http.Request) {
-		data := util.JsonParser(res, req)
+		data := util.JSONParser(res, req)
 		s.GetMetric(data.MType, data.ID, res, req)
 	}
 	return http.HandlerFunc(fn)
