@@ -50,14 +50,14 @@ func (s *CustomServer) MetricRouter() chi.Router {
 	r.Group(func(r chi.Router) {
 		r.Use(cors.Handler)
 		r.Route("/", func(r chi.Router) {
-			r.Get("/", Logging(s.GetAllMetricsHandler()))
+			r.Get("/", util.Logging(s.GetAllMetricsHandler()))
 			r.Route("/value", func(r chi.Router) {
-				r.Post("/", Logging(s.GetJSONMetricHandler()))
-				r.Get("/{metricType}/{metricName}", Logging(s.GetMetricValueHandler()))
+				r.Post("/", util.Logging(util.MiddlewareZIP(s.GetJSONMetricHandler())))
+				r.Get("/{metricType}/{metricName}", util.Logging(s.GetMetricValueHandler()))
 			})
 			r.Route("/update", func(r chi.Router) {
-				r.Post("/", Logging(s.CreateJSONMetricHandler()))
-				r.Post("/{metricType}/{metricName}/{metricValue}", Logging(s.MetricCreatorHandler()))
+				r.Post("/", util.Logging(util.MiddlewareZIP(s.CreateJSONMetricHandler())))
+				r.Post("/{metricType}/{metricName}/{metricValue}", util.Logging(s.MetricCreatorHandler()))
 			})
 		})
 	})

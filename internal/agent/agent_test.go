@@ -62,7 +62,7 @@ func Test_main(t *testing.T) {
 			ts := httptest.NewServer(s.MetricRouter())
 			defer ts.Close()
 			a.Endpoint = ts.URL[7:]
-			err := a.PostMetric(tt.testMetric.metricType, tt.testMetric.metricName, tt.testMetric.metricValue)
+			err := a.PostMetricURL(tt.testMetric.metricType, tt.testMetric.metricName, tt.testMetric.metricValue)
 			require.NoError(t, err)
 		})
 	}
