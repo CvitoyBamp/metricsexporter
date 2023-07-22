@@ -131,7 +131,6 @@ func (s *CustomServer) CreateJSONMetricHandler() http.Handler {
 	fn := func(res http.ResponseWriter, req *http.Request) {
 
 		data := util.JSONParser(res, req)
-		log.Println(*data.Value)
 
 		if data.MType != "gauge" && data.MType != "counter" {
 			http.Error(res, "Incorrect metric type, gauge or counter is expected.", http.StatusBadRequest)
