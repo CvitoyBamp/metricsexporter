@@ -151,12 +151,9 @@ func (s *CustomServer) CreateJSONMetricHandler() http.Handler {
 				return
 			}
 		}
-
 		res.WriteHeader(http.StatusOK)
 		res.Header().Set("Content-Type", "application/json")
 		log.Printf("Metric %s of type %s was successfully added", data.ID, data.MType)
-		return
-
 	}
 	return http.HandlerFunc(fn)
 }
