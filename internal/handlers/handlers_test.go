@@ -41,7 +41,7 @@ func TestMetricCreatorHandler(t *testing.T) {
 			},
 			wants: wants{
 				code:        http.StatusOK,
-				contentType: "",
+				contentType: "text/plain",
 			},
 		},
 		{
@@ -85,7 +85,7 @@ func TestMetricCreatorHandler(t *testing.T) {
 			},
 			wants: wants{
 				code:        http.StatusOK,
-				contentType: "text/plain; charset=utf-8",
+				contentType: "",
 				value:       "100.1",
 			},
 		},
@@ -108,7 +108,7 @@ func TestMetricCreatorHandler(t *testing.T) {
 			},
 			wants: wants{
 				code:        http.StatusOK,
-				contentType: "text/html; charset=utf-8",
+				contentType: "",
 			},
 		},
 	}

@@ -101,7 +101,7 @@ func (s *CustomServer) GetAllMetricsHandler() http.Handler {
 		}
 
 		res.WriteHeader(http.StatusOK)
-		res.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		res.Header().Set("Content-Type", "text/html")
 	}
 	return http.HandlerFunc(fn)
 }
@@ -111,6 +111,7 @@ func (s *CustomServer) GetMetricValueHandler() http.Handler {
 		metricType := chi.URLParam(req, "metricType")
 		metricName := chi.URLParam(req, "metricName")
 		s.GetMetric(metricType, metricName, res, req)
+		res.Header().Set("Content-Type", "text/plain")
 	}
 	return http.HandlerFunc(fn)
 }
@@ -125,6 +126,7 @@ func (s *CustomServer) MetricCreatorHandler() http.Handler {
 			http.Error(res, fmt.Sprintf("%s.", err), http.StatusBadRequest)
 			return
 		}
+		res.Header().Set("Content-Type", "text/plain")
 	}
 	return http.HandlerFunc(fn)
 }
