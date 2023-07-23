@@ -133,7 +133,7 @@ func (a *Agent) RunAgent(pollInterval, reportInterval int) {
 		case <-pI.C:
 			a.Metrics.MetricGenerator(runtime.MemStats{})
 		case <-rI.C:
-			a.PostMetrics("json")
+			a.PostMetrics("url")
 		}
 	}
 }
