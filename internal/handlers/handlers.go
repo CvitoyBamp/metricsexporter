@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/CvitoyBamp/metricsexporter/internal/util"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	cors2 "github.com/go-chi/cors"
 	"html/template"
 	"log"
@@ -51,7 +52,8 @@ func (s *CustomServer) MetricRouter() chi.Router {
 
 	r.Group(func(r chi.Router) {
 		r.Use(cors.Handler)
-		r.Use(util.MiddlewareZIP)
+		//r.Use(util.MiddlewareZIP)
+		r.Use(middleware.Compress(5, "application/json", "text/html; charset=UTF-8"))
 		r.Route("/", func(r chi.Router) {
 			r.Get("/", util.Logging(s.GetAllMetricsHandler()))
 			r.Route("/value", func(r chi.Router) {
@@ -103,6 +105,7 @@ func (s *CustomServer) GetAllMetricsHandler() http.Handler {
 		}
 
 		res.WriteHeader(http.StatusOK)
+		res.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	}
 	return http.HandlerFunc(fn)
 }
