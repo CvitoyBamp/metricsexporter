@@ -14,11 +14,6 @@ type gzipWriter struct {
 	Writer io.Writer
 }
 
-type gzipReader struct {
-	http.Request
-	Reader io.Reader
-}
-
 func (w gzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
@@ -26,11 +21,11 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 func MiddlewareZIP(h http.Handler) http.Handler {
 	zip := func(res http.ResponseWriter, req *http.Request) {
 
-		if !strings.Contains(req.Header.Get("Content-Type"), "application/json") &&
-			!strings.Contains(req.Header.Get("Accept-Encoding"), "text/html") {
-			h.ServeHTTP(res, req)
-			return
-		}
+		//if !strings.Contains(req.Header.Get("Content-Type"), "application/json") &&
+		//	!strings.Contains(req.Header.Get("Content-Type"), "text/html") {
+		//	h.ServeHTTP(res, req)
+		//	return
+		//}
 
 		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
 			h.ServeHTTP(res, req)

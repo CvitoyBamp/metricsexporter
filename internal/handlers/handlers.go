@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/CvitoyBamp/metricsexporter/internal/util"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	cors2 "github.com/go-chi/cors"
 	"html/template"
 	"log"
@@ -28,7 +27,6 @@ var htmlTemplate = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
     <title>Metrics list</title>
 </head>
 <body>
@@ -48,12 +46,10 @@ func (s *CustomServer) MetricRouter() chi.Router {
 		AllowedHeaders: []string{"Content-Type", "Content-Encoding", "Accept-Encoding"},
 	})
 
-	//compressor := middleware.Compress(5, "application/json", "text/html")
-
 	r.Group(func(r chi.Router) {
 		r.Use(cors.Handler)
-		//r.Use(util.MiddlewareZIP)
-		r.Use(middleware.Compress(5, "application/json", "text/html; charset=UTF-8"))
+		r.Use(util.MiddlewareZIP)
+		//r.Use(middleware.Compress(5, "application/json", "text/html; charset=UTF-8"))
 		r.Route("/", func(r chi.Router) {
 			r.Get("/", util.Logging(s.GetAllMetricsHandler()))
 			r.Route("/value", func(r chi.Router) {
