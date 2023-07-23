@@ -57,12 +57,12 @@ func TestMemStorage_SetMetric(t *testing.T) {
 				err := tt.ms.SetMetric(tt.dataMetric.metricType, tt.dataMetric.metricName, tt.dataMetric.metricStrValue)
 				require.NoError(t, err)
 				//tt.ms.gauge[tt.wants.metricName] = tt.wants.metricGaugeValue
-				assert.Equal(t, tt.wants.metricGaugeValue, tt.ms.gauge[tt.dataMetric.metricName])
+				assert.Equal(t, tt.wants.metricGaugeValue, tt.ms.Gauge[tt.dataMetric.metricName])
 			} else if tt.dataMetric.metricType == "counter" {
 				err := tt.ms.SetMetric(tt.dataMetric.metricType, tt.dataMetric.metricName, tt.dataMetric.metricStrValue)
 				require.NoError(t, err)
 				//tt.ms.counter[tt.wants.metricName] = tt.wants.metricCounterValue
-				assert.Equal(t, tt.wants.metricCounterValue, tt.ms.counter[tt.wants.metricName])
+				assert.Equal(t, tt.wants.metricCounterValue, tt.ms.Counter[tt.wants.metricName])
 			}
 		})
 	}
@@ -108,11 +108,11 @@ func TestMemStorage_GetMetric(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
 			if tt.dataMetric.metricType == "gauge" {
-				tt.ms.gauge[tt.dataMetric.metricName] = tt.dataMetric.metricGaugeValue
+				tt.ms.Gauge[tt.dataMetric.metricName] = tt.dataMetric.metricGaugeValue
 				val, _ := tt.ms.GetMetric(tt.dataMetric.metricType, tt.dataMetric.metricName)
 				assert.Equal(t, tt.wants.metricStrValue, val)
 			} else if tt.dataMetric.metricType == "counter" {
-				tt.ms.counter[tt.dataMetric.metricName] = tt.dataMetric.metricCounterValue
+				tt.ms.Counter[tt.dataMetric.metricName] = tt.dataMetric.metricCounterValue
 				val, _ := tt.ms.GetMetric(tt.dataMetric.metricType, tt.dataMetric.metricName)
 				assert.Equal(t, tt.wants.metricStrValue, val)
 			}

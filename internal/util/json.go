@@ -3,7 +3,9 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/CvitoyBamp/metricsexporter/internal/storage"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 )
@@ -67,4 +69,53 @@ func JSONCreator(metricValue, metricType, metricName string) ([]byte, error) {
 		return json.Marshal(cData)
 	}
 	return nil, fmt.Errorf("can't parse metric type")
+}
+
+func JSONMetricConverter(ms *storage.MemStorage) ([]byte, error) {
+
+	ms.RLock()
+	defer ms.RUnlock()
+
+	var metrics []JSONMetrics
+
+	for k, v := range ms.Gauge {
+		metrics = append(metrics, JSONMetrics{
+			ID:    k,
+			MType: "gauge",
+			Value: &v,
+		})
+	}
+
+	for k, v := range ms.Counter {
+		metrics = append(metrics, JSONMetrics{
+			ID:    k,
+			MType: "counter",
+			Delta: &v,
+		})
+	}
+
+	return json.Marshal(metrics)
+}
+
+func JSONDecoder(data []byte, ms *storage.MemStorage) error {
+	var jsonData []JSONMetrics
+	err := json.Unmarshal(data, &jsonData)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range jsonData {
+		ms.Lock()
+		if v.MType == "gauge" {
+			ms.Gauge[v.ID] = *v.Value
+			log.Print(*v.Value, v.Value, "gauge", v.ID)
+		}
+		if v.MType == "counter" {
+			ms.Counter[v.ID] = *v.Delta
+			log.Print(*v.Delta, v.Delta, "counter", v.ID)
+		}
+		ms.Unlock()
+	}
+
+	return nil
 }

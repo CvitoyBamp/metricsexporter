@@ -8,7 +8,10 @@ import (
 )
 
 type Config struct {
-	Address string `env:"ADDRESS"`
+	Address       string `env:"ADDRESS"`
+	StoreInterval int    `env:"STORE_INTERVAL"`
+	FilePath      string `env:"FILE_STORAGE_PATH"`
+	Restore       bool   `env:"RESTORE"`
 }
 
 func main() {
@@ -16,6 +19,12 @@ func main() {
 
 	flag.StringVar(&cfg.Address, "a", "localhost:8080",
 		"An address the server run")
+	flag.IntVar(&cfg.StoreInterval, "i", 300,
+		"An interval for saving metrics to file")
+	flag.StringVar(&cfg.FilePath, "f", "/tmp/metrics-db.json",
+		"A path to save file with metrics")
+	flag.BoolVar(&cfg.Restore, "r", true,
+		"Boolean flag to load file with metrics")
 	flag.Parse()
 
 	err := env.Parse(&cfg)
@@ -25,5 +34,18 @@ func main() {
 	flag.Parse()
 
 	server := handlers.CreateServer()
+
+	if cfg.Restore {
+		errLoad := server.PreloadMetrics(cfg.FilePath)
+		if errLoad != nil {
+			log.Printf("can't load metrics from file, %s", errLoad)
+		}
+	}
+
+	go func() {
+		log.Fatal(server.PostSaveMetrics(cfg.FilePath, cfg.StoreInterval))
+	}()
+
 	log.Fatal(server.RunServer(cfg.Address))
+
 }
