@@ -108,7 +108,7 @@ func TestMetricCreatorHandler(t *testing.T) {
 			},
 			wants: wants{
 				code:        http.StatusOK,
-				contentType: "",
+				contentType: "text/html",
 			},
 		},
 	}

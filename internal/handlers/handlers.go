@@ -83,8 +83,6 @@ func (s *CustomServer) GetAllMetricsHandler() http.Handler {
 			metricList = append(metricList, metric)
 		}
 
-		fmt.Println(metricList)
-
 		tpl := template.New("Metrics Page")
 		tmpl, err := tpl.Parse(htmlTemplate)
 		if err != nil {
@@ -93,6 +91,8 @@ func (s *CustomServer) GetAllMetricsHandler() http.Handler {
 			return
 		}
 
+		res.Header().Set("Content-Type", "text/html")
+
 		tmplerr := tmpl.Execute(res, metricList)
 		if tmplerr != nil {
 			log.Print("can't create template")
@@ -100,8 +100,6 @@ func (s *CustomServer) GetAllMetricsHandler() http.Handler {
 			return
 		}
 
-		res.WriteHeader(http.StatusOK)
-		res.Header().Set("Content-Type", "text/html")
 	}
 	return http.HandlerFunc(fn)
 }
