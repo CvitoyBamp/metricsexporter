@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"bufio"
-	"fmt"
 	"github.com/CvitoyBamp/metricsexporter/internal/storage"
 	"github.com/CvitoyBamp/metricsexporter/internal/util"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -50,35 +50,45 @@ func (s *CustomServer) RunServer(address string) error {
 
 func (s *CustomServer) PostSaveMetrics(filename string, storeInterval int) error {
 
-	sI := time.NewTicker(time.Duration(storeInterval) * time.Second)
+	if storeInterval == 0 {
+		producer, err := s.newProducer(filename, storeInterval)
+		log.Print(err)
+		log.Print(producer.saveToFile(s.Storage))
+	} else {
+		sI := time.NewTicker(time.Duration(storeInterval) * time.Second)
 
-	producer, err := s.newProducer(filename)
-	if err != nil {
-		return err
-	}
-
-	for {
-		select {
-		case <-sI.C:
-			errSave := producer.saveToFile(s.Storage)
-			if errSave != nil {
-				break
+		for {
+			select {
+			case <-sI.C:
+				producer, err := s.newProducer(filename, storeInterval)
+				log.Print(err)
+				log.Print(producer.saveToFile(s.Storage))
 			}
 		}
-
 	}
 
-	return fmt.Errorf("can't save to file")
+	return nil
 }
 
 func (s *CustomServer) StopServer() error {
 	return s.Server.Close()
 }
 
-func (s *CustomServer) newProducer(filename string) (*Producer, error) {
-	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		return nil, err
+func (s *CustomServer) newProducer(filename string, storeInterval int) (*Producer, error) {
+
+	var file *os.File
+	var err error
+
+	if storeInterval == 0 {
+		file, err = os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|os.O_SYNC, 0666)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		file, err = os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &Producer{
@@ -124,10 +134,12 @@ func (c *Consumer) readFromFile(ms *storage.MemStorage) error {
 		return err
 	}
 
-	errJson := util.JSONDecoder(data, ms)
-	if errJson != nil {
-		return errJson
+	errJSON := util.JSONDecoder(data, ms)
+	if errJSON != nil {
+		return errJSON
 	}
+
+	log.Print("i've read metrics from file")
 
 	return nil
 }

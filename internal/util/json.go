@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/CvitoyBamp/metricsexporter/internal/storage"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type JSONMetrics struct {
@@ -76,25 +76,38 @@ func JSONMetricConverter(ms *storage.MemStorage) ([]byte, error) {
 	ms.RLock()
 	defer ms.RUnlock()
 
-	var metrics []JSONMetrics
+	var arr []string
+	var metric JSONMetrics
 
 	for k, v := range ms.Gauge {
-		metrics = append(metrics, JSONMetrics{
+		metric = JSONMetrics{
 			ID:    k,
 			MType: "gauge",
 			Value: &v,
-		})
+		}
+		data, err := json.Marshal(metric)
+		if err != nil {
+			return nil, err
+		}
+		arr = append(arr, string(data))
 	}
 
 	for k, v := range ms.Counter {
-		metrics = append(metrics, JSONMetrics{
+		metric = JSONMetrics{
 			ID:    k,
 			MType: "counter",
 			Delta: &v,
-		})
+		}
+		data, err := json.Marshal(metric)
+		if err != nil {
+			return nil, err
+		}
+		arr = append(arr, string(data))
 	}
 
-	return json.Marshal(metrics)
+	output := "[" + strings.Join(arr, ",") + "]"
+
+	return []byte(output), nil
 }
 
 func JSONDecoder(data []byte, ms *storage.MemStorage) error {
@@ -108,11 +121,9 @@ func JSONDecoder(data []byte, ms *storage.MemStorage) error {
 		ms.Lock()
 		if v.MType == "gauge" {
 			ms.Gauge[v.ID] = *v.Value
-			log.Print(*v.Value, v.Value, "gauge", v.ID)
 		}
 		if v.MType == "counter" {
 			ms.Counter[v.ID] = *v.Delta
-			log.Print(*v.Delta, v.Delta, "counter", v.ID)
 		}
 		ms.Unlock()
 	}
