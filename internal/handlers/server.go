@@ -58,12 +58,11 @@ func (s *CustomServer) PostSaveMetrics(filename string, storeInterval int) error
 		sI := time.NewTicker(time.Duration(storeInterval) * time.Second)
 
 		for {
-			select {
-			case <-sI.C:
-				producer, err := s.newProducer(filename, storeInterval)
-				log.Print(err)
-				log.Print(producer.saveToFile(s.Storage))
-			}
+			<-sI.C
+			producer, err := s.newProducer(filename, storeInterval)
+			log.Print(err)
+			log.Print(producer.saveToFile(s.Storage))
+
 		}
 	}
 
