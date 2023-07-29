@@ -2,24 +2,18 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/CvitoyBamp/metricsexporter/internal/handlers"
 	"github.com/caarlos0/env/v6"
 	"log"
 )
 
-type Config struct {
-	Address       string `env:"ADDRESS"`
-	StoreInterval int    `env:"STORE_INTERVAL"`
-	FilePath      string `env:"FILE_STORAGE_PATH"`
-	Restore       bool   `env:"RESTORE"`
-}
-
 func main() {
-	var cfg Config
+	var cfg handlers.Config
 
 	flag.StringVar(&cfg.Address, "a", "localhost:8080",
 		"An address the server run")
-	flag.IntVar(&cfg.StoreInterval, "i", 10,
+	flag.IntVar(&cfg.StoreInterval, "i", 0,
 		"An interval for saving metrics to file")
 	flag.StringVar(&cfg.FilePath, "f", "metrics-db.json",
 		"A path to save file with metrics")
@@ -33,19 +27,25 @@ func main() {
 	}
 	flag.Parse()
 
-	server := handlers.CreateServer()
+	server := handlers.CreateServer(cfg)
 
-	if cfg.Restore {
-		errLoad := server.PreloadMetrics(cfg.FilePath)
+	if cfg.Restore && cfg.FilePath != "" {
+		errLoad := server.PreloadMetrics()
 		if errLoad != nil {
-			log.Printf("can't load metrics from file, %s", errLoad)
+			if fmt.Sprintf("%s", errLoad) == "EOF" {
+				log.Printf("Can't read metrics from the file because it doesn't exist.")
+			} else {
+				log.Printf("Сan't load metrics from file, %s", errLoad)
+			}
 		}
 	}
 
-	go func() {
-		log.Fatal(server.PostSaveMetrics(cfg.FilePath, cfg.StoreInterval))
-	}()
+	if cfg.StoreInterval > 0 && cfg.FilePath != "" {
+		go func() {
+			server.PostSaveMetrics()
+		}()
+	}
 
-	log.Fatal(server.RunServer(cfg.Address))
+	log.Fatal(server.RunServer())
 
 }

@@ -3,8 +3,9 @@ package agent
 import (
 	"bytes"
 	"fmt"
+	"github.com/CvitoyBamp/metricsexporter/internal/json"
 	"github.com/CvitoyBamp/metricsexporter/internal/metrics"
-	"github.com/CvitoyBamp/metricsexporter/internal/util"
+	"github.com/CvitoyBamp/metricsexporter/internal/middlewares"
 	"log"
 	"net/http"
 	"runtime"
@@ -33,7 +34,13 @@ func CreateAgent(endpoint string) *Agent {
 
 func (a *Agent) PostMetricURL(metricType, metricName, metricValue string) error {
 	url := fmt.Sprintf("http://%s/update/%s/%s/%s", a.Endpoint, metricType, metricName, metricValue)
-	res, err := a.Client.Post(url, "text/plain", nil)
+	req, errReq := http.NewRequest(http.MethodPost, url, nil)
+	if errReq != nil {
+		return fmt.Errorf("can't create request, err: %v", errReq)
+	}
+	req.Close = true
+	req.Header.Set("Content-Type", "text/plain")
+	res, err := a.Client.Do(req)
 	if err != nil {
 		log.Printf("metric %s with value %s was wasn't posted to %s\n", metricName, metricValue, url)
 		return fmt.Errorf("can't POST to URL, err: %v", err)
@@ -50,13 +57,13 @@ func (a *Agent) PostMetricURL(metricType, metricName, metricValue string) error 
 }
 
 func (a *Agent) PostMetricJSON(metricType, metricName, metricValue string) error {
-	data, errJSON := util.JSONCreator(metricValue, metricType, metricName)
+	data, errJSON := json.Creator(metricValue, metricType, metricName)
 	if errJSON != nil {
 		log.Printf("can't convert body to json, err: %s", errJSON)
 		return fmt.Errorf("can't convert body to json, err: %s", errJSON)
 	}
 
-	compressedData, errComp := util.Compress(data)
+	compressedData, errComp := middlewares.Compress(data)
 	if errComp != nil {
 		log.Printf("can't compress data, err: %s", errComp)
 		return fmt.Errorf("can't compress data, err: %s", errComp)

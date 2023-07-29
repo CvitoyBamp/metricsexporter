@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+type TestServer struct {
+	CustomServer handlers.CustomServer
+	Server       httptest.Server
+}
+
 type wants struct {
 	code        int
 	contentType string
@@ -27,6 +32,16 @@ func Test_main(t *testing.T) {
 
 	s := &handlers.CustomServer{
 		Storage: storage.CreateMemStorage(),
+		Config: &handlers.Config{
+			Address:       "localhost:8080",
+			StoreInterval: 5,
+			FilePath:      "metrics-db.json",
+			Restore:       false,
+		},
+	}
+
+	testServer := &TestServer{
+		CustomServer: *s,
 	}
 
 	a := &agent.Agent{
@@ -60,11 +75,11 @@ func Test_main(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			ts := httptest.NewServer(s.MetricRouter())
+			ts := httptest.NewServer(testServer.CustomServer.MetricRouter())
 			defer ts.Close()
 			a.Endpoint = ts.URL[7:]
-			err := a.PostMetricURL(tt.testMetric.metricType, tt.testMetric.metricName, tt.testMetric.metricValue)
-			require.NoError(t, err)
+			errPost := a.PostMetricURL(tt.testMetric.metricType, tt.testMetric.metricName, tt.testMetric.metricValue)
+			require.NoError(t, errPost)
 		})
 	}
 }

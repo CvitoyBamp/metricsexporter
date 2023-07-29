@@ -1,4 +1,4 @@
-package util
+package middlewares
 
 import (
 	"go.uber.org/zap"

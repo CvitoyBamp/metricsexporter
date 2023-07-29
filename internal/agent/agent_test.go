@@ -2,68 +2,148 @@ package agent
 
 import (
 	"github.com/CvitoyBamp/metricsexporter/internal/handlers"
-	"github.com/CvitoyBamp/metricsexporter/internal/metrics"
 	"github.com/CvitoyBamp/metricsexporter/internal/storage"
 	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
+
+	"github.com/stretchr/testify/assert"
 )
+
+type TestServer struct {
+	CustomServer handlers.CustomServer
+	Server       httptest.Server
+}
 
 type wants struct {
 	code        int
 	contentType string
+	value       string
 }
 
-type testMetric struct {
-	metricName  string
-	metricType  string
-	metricValue string
+type request struct {
+	url    string
+	method string
 }
 
-func Test_main(t *testing.T) {
+func TestMetricCreatorHandler(t *testing.T) {
 
 	s := &handlers.CustomServer{
 		Storage: storage.CreateMemStorage(),
+		Config: &handlers.Config{
+			StoreInterval: 5,
+			FilePath:      "metrics-db.json",
+			Restore:       false,
+		},
 	}
 
-	a := &Agent{
-		Client: &http.Client{
-			Timeout: 1 * time.Second,
-		},
-		Metrics: &metrics.Metrics{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64),
-		},
+	testServer := &TestServer{
+		CustomServer: *s,
 	}
 
 	tests := []struct {
-		testName   string
-		testMetric testMetric
-		wants      wants
+		testName string
+		request  request
+		wants    wants
 	}{
 		{
-			testName: "Metric was successfully pushed",
-			testMetric: testMetric{
-				metricName:  "testGauge",
-				metricType:  "gauge",
-				metricValue: "1.0",
+			testName: "Metric was successfully added",
+			request: request{
+				url:    "/update/gauge/testGauge/100.1",
+				method: http.MethodPost,
+			},
+			wants: wants{
+				code:        http.StatusOK,
+				contentType: "text/plain",
+			},
+		},
+		{
+			testName: "Not correct URL for a POST-method",
+			request: request{
+				url:    "/update/gauge/testGauge/100.1",
+				method: http.MethodGet,
+			},
+			wants: wants{
+				code:        http.StatusMethodNotAllowed,
+				contentType: "",
+			},
+		},
+		{
+			testName: "Not correct URL",
+			request: request{
+				url:    "/update/gauge/",
+				method: http.MethodPost,
+			},
+			wants: wants{
+				code:        http.StatusNotFound,
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			testName: "Can't parse value",
+			request: request{
+				url:    "/update/gauge/testGauge/badData",
+				method: http.MethodPost,
+			},
+			wants: wants{
+				code:        http.StatusBadRequest,
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			testName: "Get metric by Name",
+			request: request{
+				url:    "/value/gauge/testGauge",
+				method: http.MethodGet,
 			},
 			wants: wants{
 				code:        http.StatusOK,
 				contentType: "",
+				value:       "100.1",
+			},
+		},
+		{
+			testName: "Get unexist metric",
+			request: request{
+				url:    "/value/gauge/UnExistMetric",
+				method: http.MethodGet,
+			},
+			wants: wants{
+				code:        http.StatusNotFound,
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			testName: "Get metrics",
+			request: request{
+				url:    "/",
+				method: http.MethodGet,
+			},
+			wants: wants{
+				code:        http.StatusOK,
+				contentType: "text/html",
 			},
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			ts := httptest.NewServer(s.MetricRouter())
+			ts := httptest.NewServer(testServer.CustomServer.MetricRouter())
 			defer ts.Close()
-			a.Endpoint = ts.URL[7:]
-			err := a.PostMetricURL(tt.testMetric.metricType, tt.testMetric.metricName, tt.testMetric.metricValue)
-			require.NoError(t, err)
+			req, rerr := http.NewRequest(tt.request.method, ts.URL+tt.request.url, nil)
+			resp, cerr := ts.Client().Do(req)
+			require.NoError(t, rerr)
+			require.NoError(t, cerr)
+			defer resp.Body.Close()
+			assert.Equal(t, tt.wants.code, resp.StatusCode)
+			assert.Equal(t, tt.wants.contentType, resp.Header.Get("Content-Type"))
+
+			if tt.wants.value != "" {
+				body, err := io.ReadAll(resp.Body)
+				require.NoError(t, err)
+				assert.Equal(t, tt.wants.value, string(body))
+			}
 		})
 	}
 }

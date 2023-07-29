@@ -1,4 +1,4 @@
-package util
+package json
 
 import (
 	"encoding/json"
@@ -10,16 +10,16 @@ import (
 	"strings"
 )
 
-type JSONMetrics struct {
+type Metrics struct {
 	ID    string   `json:"id"`              // имя метрики
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
 	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
 
-func JSONParser(res http.ResponseWriter, req *http.Request) *JSONMetrics {
+func Parser(res http.ResponseWriter, req *http.Request) *Metrics {
 
-	var jsonStruct JSONMetrics
+	var jsonStruct Metrics
 
 	if req.Header.Get("Content-Type") != "application/json" {
 		http.Error(res, "Only application/json supported.", http.StatusUnsupportedMediaType)
@@ -38,9 +38,9 @@ func JSONParser(res http.ResponseWriter, req *http.Request) *JSONMetrics {
 	return &jsonStruct
 }
 
-func JSONCreator(metricValue, metricType, metricName string) ([]byte, error) {
-	var cData JSONMetrics
-	var gData JSONMetrics
+func Creator(metricValue, metricType, metricName string) ([]byte, error) {
+	var cData Metrics
+	var gData Metrics
 
 	if metricType == "gauge" {
 		value, err := strconv.ParseFloat(metricValue, 64)
@@ -48,7 +48,7 @@ func JSONCreator(metricValue, metricType, metricName string) ([]byte, error) {
 			_ = fmt.Errorf("can't parse value to gauge type (float64), error: %s", err)
 		}
 
-		gData = JSONMetrics{
+		gData = Metrics{
 			ID:    metricName,
 			MType: metricType,
 			Value: &value,
@@ -61,7 +61,7 @@ func JSONCreator(metricValue, metricType, metricName string) ([]byte, error) {
 		if err != nil {
 			_ = fmt.Errorf("can't parse value to counter type (int64), error: %s", err)
 		}
-		cData = JSONMetrics{
+		cData = Metrics{
 			ID:    metricName,
 			MType: metricType,
 			Delta: &value,
@@ -71,16 +71,16 @@ func JSONCreator(metricValue, metricType, metricName string) ([]byte, error) {
 	return nil, fmt.Errorf("can't parse metric type")
 }
 
-func JSONMetricConverter(ms *storage.MemStorage) ([]byte, error) {
+func MetricConverter(ms *storage.MemStorage) ([]byte, error) {
 
 	ms.RLock()
 	defer ms.RUnlock()
 
 	var arr []string
-	var metric JSONMetrics
+	var metric Metrics
 
-	for k, v := range ms.Gauge {
-		metric = JSONMetrics{
+	for k, v := range ms.GetGaugeMetrics() {
+		metric = Metrics{
 			ID:    k,
 			MType: "gauge",
 			Value: &v,
@@ -92,8 +92,8 @@ func JSONMetricConverter(ms *storage.MemStorage) ([]byte, error) {
 		arr = append(arr, string(data))
 	}
 
-	for k, v := range ms.Counter {
-		metric = JSONMetrics{
+	for k, v := range ms.GetCounterMetrics() {
+		metric = Metrics{
 			ID:    k,
 			MType: "counter",
 			Delta: &v,
@@ -110,22 +110,26 @@ func JSONMetricConverter(ms *storage.MemStorage) ([]byte, error) {
 	return []byte(output), nil
 }
 
-func JSONDecoder(data []byte, ms *storage.MemStorage) error {
-	var jsonData []JSONMetrics
+func Decoder(data []byte, ms *storage.MemStorage) error {
+	var jsonData []Metrics
 	err := json.Unmarshal(data, &jsonData)
 	if err != nil {
 		return err
 	}
 
 	for _, v := range jsonData {
-		ms.Lock()
 		if v.MType == "gauge" {
-			ms.Gauge[v.ID] = *v.Value
+			errSetG := ms.SetMetric(v.MType, v.ID, strconv.FormatFloat(*v.Value, 'f', -1, 64))
+			if errSetG != nil {
+				return errSetG
+			}
 		}
 		if v.MType == "counter" {
-			ms.Counter[v.ID] = *v.Delta
+			errSetC := ms.SetMetric(v.MType, v.ID, strconv.FormatInt(*v.Delta, 10))
+			if errSetC != nil {
+				return errSetC
+			}
 		}
-		ms.Unlock()
 	}
 
 	return nil

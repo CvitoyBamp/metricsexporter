@@ -2,7 +2,8 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/CvitoyBamp/metricsexporter/internal/util"
+	"github.com/CvitoyBamp/metricsexporter/internal/json"
+	"github.com/CvitoyBamp/metricsexporter/internal/middlewares"
 	"github.com/go-chi/chi/v5"
 	cors2 "github.com/go-chi/cors"
 	"html/template"
@@ -48,17 +49,17 @@ func (s *CustomServer) MetricRouter() chi.Router {
 
 	r.Group(func(r chi.Router) {
 		r.Use(cors.Handler)
-		r.Use(util.MiddlewareZIP)
+		r.Use(middlewares.MiddlewareZIP)
 		//r.Use(middleware.Compress(5, "application/json", "text/html; charset=UTF-8"))
 		r.Route("/", func(r chi.Router) {
-			r.Get("/", util.Logging(s.GetAllMetricsHandler()))
+			r.Get("/", middlewares.Logging(s.getAllMetricsHandler()))
 			r.Route("/value", func(r chi.Router) {
-				r.Post("/", util.Logging(s.GetJSONMetricHandler()))
-				r.Get("/{metricType}/{metricName}", util.Logging(s.GetMetricValueHandler()))
+				r.Post("/", middlewares.Logging(s.getJSONMetricHandler()))
+				r.Get("/{metricType}/{metricName}", middlewares.Logging(s.getMetricValueHandler()))
 			})
 			r.Route("/update", func(r chi.Router) {
-				r.Post("/", util.Logging(s.CreateJSONMetricHandler()))
-				r.Post("/{metricType}/{metricName}/{metricValue}", util.Logging(s.MetricCreatorHandler()))
+				r.Post("/", middlewares.Logging(s.createJSONMetricHandler()))
+				r.Post("/{metricType}/{metricName}/{metricValue}", middlewares.Logging(s.metricCreatorHandler()))
 			})
 		})
 	})
@@ -66,7 +67,7 @@ func (s *CustomServer) MetricRouter() chi.Router {
 	return r
 }
 
-func (s *CustomServer) GetAllMetricsHandler() http.Handler {
+func (s *CustomServer) getAllMetricsHandler() http.Handler {
 	fn := func(res http.ResponseWriter, _ *http.Request) {
 		var metricList []MetricsList
 		var metric MetricsList
@@ -104,7 +105,7 @@ func (s *CustomServer) GetAllMetricsHandler() http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func (s *CustomServer) GetMetricValueHandler() http.Handler {
+func (s *CustomServer) getMetricValueHandler() http.Handler {
 	fn := func(res http.ResponseWriter, req *http.Request) {
 		metricType := chi.URLParam(req, "metricType")
 		metricName := chi.URLParam(req, "metricName")
@@ -114,7 +115,7 @@ func (s *CustomServer) GetMetricValueHandler() http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func (s *CustomServer) MetricCreatorHandler() http.Handler {
+func (s *CustomServer) metricCreatorHandler() http.Handler {
 	fn := func(res http.ResponseWriter, req *http.Request) {
 		metricType := chi.URLParam(req, "metricType")
 		metricName := chi.URLParam(req, "metricName")
@@ -124,15 +125,18 @@ func (s *CustomServer) MetricCreatorHandler() http.Handler {
 			http.Error(res, fmt.Sprintf("%s.", err), http.StatusBadRequest)
 			return
 		}
+		if s.Config.StoreInterval == 0 && s.Config.FilePath != "" {
+			s.SyncSavingToFile()
+		}
 		res.Header().Set("Content-Type", "text/plain")
 	}
 	return http.HandlerFunc(fn)
 }
 
-func (s *CustomServer) CreateJSONMetricHandler() http.Handler {
+func (s *CustomServer) createJSONMetricHandler() http.Handler {
 	fn := func(res http.ResponseWriter, req *http.Request) {
 
-		data := util.JSONParser(res, req)
+		data := json.Parser(res, req)
 
 		if data.MType != "gauge" && data.MType != "counter" {
 			http.Error(res, "Incorrect metric type, gauge or counter is expected.", http.StatusBadRequest)
@@ -153,6 +157,9 @@ func (s *CustomServer) CreateJSONMetricHandler() http.Handler {
 				return
 			}
 		}
+		if s.Config.StoreInterval == 0 && s.Config.FilePath != "" {
+			s.SyncSavingToFile()
+		}
 		res.WriteHeader(http.StatusOK)
 		res.Header().Set("Content-Type", "application/json")
 		log.Printf("Metric %s of type %s was successfully added", data.ID, data.MType)
@@ -160,9 +167,9 @@ func (s *CustomServer) CreateJSONMetricHandler() http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func (s *CustomServer) GetJSONMetricHandler() http.Handler {
+func (s *CustomServer) getJSONMetricHandler() http.Handler {
 	fn := func(res http.ResponseWriter, req *http.Request) {
-		data := util.JSONParser(res, req)
+		data := json.Parser(res, req)
 		s.GetMetric(data.MType, data.ID, res, req)
 	}
 	return http.HandlerFunc(fn)

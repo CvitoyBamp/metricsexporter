@@ -9,14 +9,14 @@ import (
 // MemStorage In-memory хранилище метрик
 type MemStorage struct {
 	sync.RWMutex
-	Gauge   map[string]float64
-	Counter map[string]int64
+	gauge   map[string]float64
+	counter map[string]int64
 }
 
 func CreateMemStorage() *MemStorage {
 	return &MemStorage{
-		Gauge:   make(map[string]float64),
-		Counter: make(map[string]int64),
+		gauge:   make(map[string]float64),
+		counter: make(map[string]int64),
 	}
 }
 
@@ -27,7 +27,7 @@ func (ms *MemStorage) SetMetric(metricType, metricName, metricValue string) erro
 			return fmt.Errorf("can't parse value to counter type (int64), error: %s", err)
 		}
 		ms.Lock()
-		ms.Counter[metricName] += value
+		ms.counter[metricName] += value
 		ms.Unlock()
 	} else if metricType == "gauge" {
 		value, err := strconv.ParseFloat(metricValue, 64)
@@ -35,7 +35,7 @@ func (ms *MemStorage) SetMetric(metricType, metricName, metricValue string) erro
 			return fmt.Errorf("can't parse value to gauge type (float64), error: %s", err)
 		}
 		ms.Lock()
-		ms.Gauge[metricName] = value
+		ms.gauge[metricName] = value
 		ms.Unlock()
 	} else {
 		return fmt.Errorf("don't know such type: %s", metricType)
@@ -48,17 +48,17 @@ func (ms *MemStorage) GetMetric(metricType, metricName string) (string, error) {
 	if metricType == "counter" {
 		ms.RLock()
 		defer ms.RUnlock()
-		_, ok := ms.Counter[metricName]
+		_, ok := ms.counter[metricName]
 		if ok {
-			val := ms.Counter[metricName]
+			val := ms.counter[metricName]
 			return fmt.Sprintf("%d", val), nil
 		} else {
 			return "", fmt.Errorf("don't have metric %s of type %s in storage", metricName, metricType)
 		}
 	} else if metricType == "gauge" {
-		_, ok := ms.Gauge[metricName]
+		_, ok := ms.gauge[metricName]
 		if ok {
-			val := ms.Gauge[metricName]
+			val := ms.gauge[metricName]
 			return strconv.FormatFloat(val, 'f', -1, 64), nil
 		} else {
 			return "", fmt.Errorf("don't have metric %s of type %s in storage", metricName, metricType)
@@ -69,15 +69,15 @@ func (ms *MemStorage) GetMetric(metricType, metricName string) (string, error) {
 }
 
 func (ms *MemStorage) GetExistsMetrics() (map[string]string, error) {
-	l := len(ms.Gauge) + len(ms.Counter)
+	l := len(ms.gauge) + len(ms.counter)
 	if l != 0 {
 		metricsList := make(map[string]string, l)
 		ms.Lock()
 		defer ms.Unlock()
-		for k, v := range ms.Gauge {
+		for k, v := range ms.gauge {
 			metricsList[k] = fmt.Sprintf("%f", v)
 		}
-		for k, v := range ms.Counter {
+		for k, v := range ms.counter {
 			metricsList[k] = fmt.Sprintf("%d", v)
 		}
 		return metricsList, nil
@@ -86,11 +86,19 @@ func (ms *MemStorage) GetExistsMetrics() (map[string]string, error) {
 	}
 }
 
+func (ms *MemStorage) GetGaugeMetrics() map[string]float64 {
+	return ms.gauge
+}
+
+func (ms *MemStorage) GetCounterMetrics() map[string]int64 {
+	return ms.counter
+}
+
 func (ms *MemStorage) DeleteMetric(metricType, metricName string) error {
 	if metricType == "counter" {
-		delete(ms.Counter, metricName)
+		delete(ms.counter, metricName)
 	} else if metricType == "gauge" {
-		delete(ms.Gauge, metricName)
+		delete(ms.gauge, metricName)
 	} else {
 		_ = fmt.Errorf("don't have such metric %s of type %s", metricName, metricType)
 	}

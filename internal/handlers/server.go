@@ -2,13 +2,20 @@ package handlers
 
 import (
 	"bufio"
+	"github.com/CvitoyBamp/metricsexporter/internal/json"
 	"github.com/CvitoyBamp/metricsexporter/internal/storage"
-	"github.com/CvitoyBamp/metricsexporter/internal/util"
 	"log"
 	"net/http"
 	"os"
 	"time"
 )
+
+type Config struct {
+	Address       string `env:"ADDRESS"`
+	StoreInterval int    `env:"STORE_INTERVAL"`
+	FilePath      string `env:"FILE_STORAGE_PATH"`
+	Restore       bool   `env:"RESTORE"`
+}
 
 type Consumer struct {
 	file   *os.File
@@ -23,17 +30,19 @@ type Producer struct {
 type CustomServer struct {
 	Server  *http.Server
 	Storage *storage.MemStorage
+	Config  *Config
 }
 
-func CreateServer() *CustomServer {
+func CreateServer(cfg Config) *CustomServer {
 	return &CustomServer{
 		Server:  &http.Server{},
 		Storage: storage.CreateMemStorage(),
+		Config:  &cfg,
 	}
 }
 
-func (s *CustomServer) PreloadMetrics(filename string) error {
-	consumer, err := s.newConsumer(filename)
+func (s *CustomServer) PreloadMetrics() error {
+	consumer, err := s.newConsumer()
 	if err != nil {
 		return err
 	}
@@ -44,47 +53,43 @@ func (s *CustomServer) PreloadMetrics(filename string) error {
 	return nil
 }
 
-func (s *CustomServer) RunServer(address string) error {
-	return http.ListenAndServe(address, s.MetricRouter())
+func (s *CustomServer) RunServer() error {
+	return http.ListenAndServe(s.Config.Address, s.MetricRouter())
 }
 
-func (s *CustomServer) PostSaveMetrics(filename string, storeInterval int) error {
+func (s *CustomServer) PostSaveMetrics() {
 
-	if storeInterval == 0 {
-		producer, err := s.newProducer(filename, storeInterval)
-		log.Print(err)
-		log.Print(producer.saveToFile(s.Storage))
-	} else {
-		sI := time.NewTicker(time.Duration(storeInterval) * time.Second)
+	sI := time.NewTicker(time.Duration(s.Config.StoreInterval) * time.Second)
 
-		for {
-			<-sI.C
-			producer, err := s.newProducer(filename, storeInterval)
-			log.Print(err)
-			log.Print(producer.saveToFile(s.Storage))
-
+	for {
+		<-sI.C
+		producer, errProducer := s.newProducer(false)
+		if errProducer != nil {
+			log.Print(errProducer)
+		}
+		errSave := producer.saveToFile(s.Storage)
+		if errProducer != nil {
+			log.Print(errSave)
 		}
 	}
-
-	return nil
 }
 
 func (s *CustomServer) StopServer() error {
 	return s.Server.Close()
 }
 
-func (s *CustomServer) newProducer(filename string, storeInterval int) (*Producer, error) {
+func (s *CustomServer) newProducer(sync bool) (*Producer, error) {
 
 	var file *os.File
 	var err error
 
-	if storeInterval == 0 {
-		file, err = os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|os.O_SYNC, 0666)
+	if sync {
+		file, err = os.OpenFile(s.Config.FilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|os.O_SYNC, 0666)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		file, err = os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		file, err = os.OpenFile(s.Config.FilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			return nil, err
 		}
@@ -96,8 +101,8 @@ func (s *CustomServer) newProducer(filename string, storeInterval int) (*Produce
 	}, nil
 }
 
-func (s *CustomServer) newConsumer(filename string) (*Consumer, error) {
-	file, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0666)
+func (s *CustomServer) newConsumer() (*Consumer, error) {
+	file, err := os.OpenFile(s.Config.FilePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +114,7 @@ func (s *CustomServer) newConsumer(filename string) (*Consumer, error) {
 }
 
 func (p *Producer) saveToFile(ms *storage.MemStorage) error {
-	data, errData := util.JSONMetricConverter(ms)
+	data, errData := json.MetricConverter(ms)
 
 	if errData != nil {
 		return errData
@@ -123,6 +128,8 @@ func (p *Producer) saveToFile(ms *storage.MemStorage) error {
 		return err
 	}
 
+	log.Print("put the metrics in a file")
+
 	return p.writer.Flush()
 }
 
@@ -133,7 +140,7 @@ func (c *Consumer) readFromFile(ms *storage.MemStorage) error {
 		return err
 	}
 
-	errJSON := util.JSONDecoder(data, ms)
+	errJSON := json.Decoder(data, ms)
 	if errJSON != nil {
 		return errJSON
 	}

@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/CvitoyBamp/metricsexporter/internal/util"
+	"github.com/CvitoyBamp/metricsexporter/internal/json"
 	"io"
 	"log"
 	"net/http"
@@ -26,8 +26,7 @@ func (s *CustomServer) GetMetric(metricType, metricName string, res http.Respons
 	}
 
 	if req.Header.Get("Content-Type") == "application/json" {
-		resp, respErr := util.JSONCreator(metricValue, metricType, metricName)
-		log.Println(string(resp))
+		resp, respErr := json.Creator(metricValue, metricType, metricName)
 		if respErr != nil {
 			http.Error(res, "can't parse data as json", http.StatusBadRequest)
 		}
@@ -40,5 +39,16 @@ func (s *CustomServer) GetMetric(metricType, metricName string, res http.Respons
 		if err != nil {
 			log.Println("can't write answer to response")
 		}
+	}
+}
+
+func (s *CustomServer) SyncSavingToFile() {
+	producer, errProducer := s.newProducer(true)
+	if errProducer != nil {
+		log.Print(errProducer)
+	}
+	errSave := producer.saveToFile(s.Storage)
+	if errProducer != nil {
+		log.Print(errSave)
 	}
 }
