@@ -86,6 +86,14 @@ func (ms *MemStorage) GetExistsMetrics() (map[string]string, error) {
 	}
 }
 
+func (ms *MemStorage) GetGaugeMetrics() map[string]float64 {
+	return ms.gauge
+}
+
+func (ms *MemStorage) GetCounterMetrics() map[string]int64 {
+	return ms.counter
+}
+
 func (ms *MemStorage) DeleteMetric(metricType, metricName string) error {
 	if metricType == "counter" {
 		delete(ms.counter, metricName)

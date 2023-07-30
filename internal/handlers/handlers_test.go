@@ -11,6 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type TestServer struct {
+	CustomServer CustomServer
+	Server       httptest.Server
+}
+
 type wants struct {
 	code        int
 	contentType string
@@ -26,6 +31,15 @@ func TestMetricCreatorHandler(t *testing.T) {
 
 	s := &CustomServer{
 		Storage: storage.CreateMemStorage(),
+		Config: &Config{
+			StoreInterval: 5,
+			FilePath:      "metrics-db.json",
+			Restore:       false,
+		},
+	}
+
+	testServer := &TestServer{
+		CustomServer: *s,
 	}
 
 	tests := []struct {
@@ -41,7 +55,7 @@ func TestMetricCreatorHandler(t *testing.T) {
 			},
 			wants: wants{
 				code:        http.StatusOK,
-				contentType: "",
+				contentType: "text/plain",
 			},
 		},
 		{
@@ -85,7 +99,7 @@ func TestMetricCreatorHandler(t *testing.T) {
 			},
 			wants: wants{
 				code:        http.StatusOK,
-				contentType: "text/plain; charset=utf-8",
+				contentType: "",
 				value:       "100.1",
 			},
 		},
@@ -108,13 +122,13 @@ func TestMetricCreatorHandler(t *testing.T) {
 			},
 			wants: wants{
 				code:        http.StatusOK,
-				contentType: "text/html; charset=utf-8",
+				contentType: "text/html",
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			ts := httptest.NewServer(s.MetricRouter())
+			ts := httptest.NewServer(testServer.CustomServer.MetricRouter())
 			defer ts.Close()
 			req, rerr := http.NewRequest(tt.request.method, ts.URL+tt.request.url, nil)
 			resp, cerr := ts.Client().Do(req)

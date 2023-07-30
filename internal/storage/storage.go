@@ -6,4 +6,6 @@ type IMemStorage interface {
 	GetMetric(metricType, metricName string) (string, error)
 	GetExistsMetrics() (map[string]string, error)
 	DeleteMetric(metricType, metricName string) error
+	GetGaugeMetrics() map[string]float64
+	GetCounterMetrics() map[string]int64
 }
