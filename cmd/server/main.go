@@ -8,6 +8,14 @@ import (
 	"log"
 )
 
+const (
+	user = "postgres"
+	pass = "OG94Km0XV6xFJrnP"
+	url  = "db.hqtykvrrpeewsakiexbk.supabase.co"
+	port = "5432"
+	db   = "postgres"
+)
+
 func main() {
 	var cfg handlers.Config
 
@@ -19,7 +27,7 @@ func main() {
 		"A path to save file with metrics")
 	flag.BoolVar(&cfg.Restore, "r", true,
 		"Boolean flag to load file with metrics")
-	flag.StringVar(&cfg.DSN, "d", "postgres://postgres:OG94Km0XV6xFJrnP@db.hqtykvrrpeewsakiexbk.supabase.co:5432/postgres",
+	flag.StringVar(&cfg.DSN, "d", fmt.Sprintf("postgres://%s:%s@%s:%s/%s", user, pass, url, port, db),
 		"Database DSN")
 	flag.Parse()
 
@@ -27,7 +35,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	flag.Parse()
 
 	server := handlers.CreateServer(cfg)
 

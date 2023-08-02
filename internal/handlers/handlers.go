@@ -183,5 +183,4 @@ func (s *CustomServer) checkDBConnectivityHandler(res http.ResponseWriter, req *
 		http.Error(res, fmt.Sprintf("%s", err), http.StatusInternalServerError)
 	}
 	res.WriteHeader(http.StatusOK)
-	return
 }
