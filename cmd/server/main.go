@@ -19,6 +19,8 @@ func main() {
 		"A path to save file with metrics")
 	flag.BoolVar(&cfg.Restore, "r", true,
 		"Boolean flag to load file with metrics")
+	flag.StringVar(&cfg.DSN, "d", "postgres://postgres:OG94Km0XV6xFJrnP@db.hqtykvrrpeewsakiexbk.supabase.co:5432/postgres",
+		"Database DSN")
 	flag.Parse()
 
 	err := env.Parse(&cfg)

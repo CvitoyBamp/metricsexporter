@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/CvitoyBamp/metricsexporter/internal/db"
 	"github.com/CvitoyBamp/metricsexporter/internal/json"
 	"github.com/CvitoyBamp/metricsexporter/internal/middlewares"
 	"github.com/go-chi/chi/v5"
@@ -53,6 +54,7 @@ func (s *CustomServer) MetricRouter() chi.Router {
 		//r.Use(middleware.Compress(5, "application/json", "text/html; charset=UTF-8"))
 		r.Route("/", func(r chi.Router) {
 			r.Get("/", middlewares.Logging(s.getAllMetricsHandler()))
+			r.Get("/ping", s.checkDBConnectivityHandler)
 			r.Route("/value", func(r chi.Router) {
 				r.Post("/", middlewares.Logging(s.getJSONMetricHandler()))
 				r.Get("/{metricType}/{metricName}", middlewares.Logging(s.getMetricValueHandler()))
@@ -173,4 +175,13 @@ func (s *CustomServer) getJSONMetricHandler() http.Handler {
 		s.GetMetric(data.MType, data.ID, res, req)
 	}
 	return http.HandlerFunc(fn)
+}
+
+func (s *CustomServer) checkDBConnectivityHandler(res http.ResponseWriter, req *http.Request) {
+	err := db.CheckConnectivity(s.Config.DSN)
+	if err != nil {
+		http.Error(res, fmt.Sprintf("%s", err), http.StatusInternalServerError)
+	}
+	res.WriteHeader(http.StatusOK)
+	return
 }
