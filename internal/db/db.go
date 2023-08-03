@@ -80,7 +80,7 @@ func (db Database) SetMetricDB(metricType, metricName, metricValue string) error
 		_, err = db.Conn.Exec(context.Background(),
 			`INSERT INTO counterMetrics (name, value, timestamp)
                  VALUES ($1, $2, $3)
-                 ON CONFLICT (name) DO UPDATE SET value = $2, timestamp = $3;`,
+                 ON CONFLICT (name) DO UPDATE SET value = value + $2, timestamp = $3;`,
 			metricName, value, time.Now())
 		if err != nil {
 			return err
@@ -95,6 +95,9 @@ func (db Database) SetMetricDB(metricType, metricName, metricValue string) error
                  VALUES ($1, $2, $3)
                  ON CONFLICT (name) DO UPDATE SET value = $2, timestamp = $3;`,
 			metricName, value, time.Now())
+		if err != nil {
+			return err
+		}
 	} else {
 		return fmt.Errorf("don't know such type: %s", metricType)
 	}
