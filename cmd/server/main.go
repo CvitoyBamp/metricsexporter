@@ -38,7 +38,7 @@ func main() {
 
 	server := handlers.CreateServer(cfg)
 
-	if cfg.Restore && cfg.FilePath != "" {
+	if cfg.Restore && cfg.FilePath != "" && cfg.DSN == "" {
 		errLoad := server.PreloadMetrics()
 		if errLoad != nil {
 			if fmt.Sprintf("%s", errLoad) == "EOF" {
@@ -49,7 +49,7 @@ func main() {
 		}
 	}
 
-	if cfg.StoreInterval > 0 && cfg.FilePath != "" {
+	if cfg.StoreInterval > 0 && cfg.FilePath != "" && cfg.DSN == "" {
 		go func() {
 			server.PostSaveMetrics()
 		}()

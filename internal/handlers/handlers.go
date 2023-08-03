@@ -133,7 +133,7 @@ func (s *CustomServer) metricCreatorHandler() http.Handler {
 			http.Error(res, fmt.Sprintf("%s.", err), http.StatusBadRequest)
 			return
 		}
-		if s.Config.StoreInterval == 0 && s.Config.FilePath != "" {
+		if s.Config.StoreInterval == 0 && s.Config.FilePath != "" && s.Config.DSN == "" {
 			s.SyncSavingToFile()
 		}
 		res.Header().Set("Content-Type", "text/plain")
@@ -165,7 +165,7 @@ func (s *CustomServer) createJSONMetricHandler() http.Handler {
 				return
 			}
 		}
-		if s.Config.StoreInterval == 0 && s.Config.FilePath != "" {
+		if s.Config.StoreInterval == 0 && s.Config.FilePath != "" && s.Config.DSN == "" {
 			s.SyncSavingToFile()
 		}
 		res.WriteHeader(http.StatusOK)
