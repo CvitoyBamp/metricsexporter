@@ -21,7 +21,7 @@ func main() {
 
 	flag.StringVar(&cfg.Address, "a", "localhost:8080",
 		"An address the server run")
-	flag.IntVar(&cfg.StoreInterval, "i", 0,
+	flag.IntVar(&cfg.StoreInterval, "i", 300,
 		"An interval for saving metrics to file")
 	flag.StringVar(&cfg.FilePath, "f", "metrics-db.json",
 		"A path to save file with metrics")

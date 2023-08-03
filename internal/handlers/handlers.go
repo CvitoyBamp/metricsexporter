@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/CvitoyBamp/metricsexporter/internal/db"
 	"github.com/CvitoyBamp/metricsexporter/internal/json"
 	"github.com/CvitoyBamp/metricsexporter/internal/middlewares"
 	"github.com/go-chi/chi/v5"
@@ -73,7 +72,14 @@ func (s *CustomServer) getAllMetricsHandler() http.Handler {
 	fn := func(res http.ResponseWriter, _ *http.Request) {
 		var metricList []MetricsList
 		var metric MetricsList
-		list, err := s.Storage.GetExistsMetrics()
+		var list map[string]string
+		var err error
+
+		if s.Config.DSN != "" {
+			list, err = s.DB.GetExistsMetricsDB()
+		} else {
+			list, err = s.Storage.GetExistsMetrics()
+		}
 
 		if err != nil {
 			http.Error(res, "No metrics in storage", http.StatusNotFound)
@@ -178,7 +184,7 @@ func (s *CustomServer) getJSONMetricHandler() http.Handler {
 }
 
 func (s *CustomServer) checkDBConnectivityHandler(res http.ResponseWriter, req *http.Request) {
-	err := db.CheckConnectivity(s.Config.DSN)
+	err := s.DB.CheckConnectivity()
 	if err != nil {
 		http.Error(res, fmt.Sprintf("%s", err), http.StatusInternalServerError)
 	}

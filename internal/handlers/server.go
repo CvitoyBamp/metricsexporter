@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bufio"
+	"github.com/CvitoyBamp/metricsexporter/internal/db"
 	"github.com/CvitoyBamp/metricsexporter/internal/json"
 	"github.com/CvitoyBamp/metricsexporter/internal/storage"
 	"log"
@@ -32,6 +33,7 @@ type CustomServer struct {
 	Server  *http.Server
 	Storage *storage.MemStorage
 	Config  *Config
+	DB      *db.Database
 }
 
 func CreateServer(cfg Config) *CustomServer {
@@ -39,6 +41,7 @@ func CreateServer(cfg Config) *CustomServer {
 		Server:  &http.Server{},
 		Storage: storage.CreateMemStorage(),
 		Config:  &cfg,
+		DB:      db.CreateDB(cfg.DSN),
 	}
 }
 
