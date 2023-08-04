@@ -43,35 +43,34 @@ func CreateDB(pgURL string) *Database {
 
 	var db Database
 
-	if pgURL == "" {
-		return &db
-	}
+	if pgURL != "" {
 
-	ctx := context.Background()
+		ctx := context.Background()
 
-	connConfig, err := pgx.ParseConfig(pgURL)
-	if err != nil {
-		log.Fatalln(err)
-	}
+		connConfig, err := pgx.ParseConfig(pgURL)
+		if err != nil {
+			log.Fatalln(err)
+		}
 
-	db.Conn, err = pgx.ConnectConfig(ctx, connConfig)
-	if err != nil {
-		log.Fatalln(err)
-	}
+		db.Conn, err = pgx.ConnectConfig(ctx, connConfig)
+		if err != nil {
+			log.Fatalln(err)
+		}
 
-	_, err = db.Conn.Exec(context.Background(), createGaugeTable)
-	if err != nil {
-		log.Fatalln(err)
-	}
+		_, err = db.Conn.Exec(context.Background(), createGaugeTable)
+		if err != nil {
+			log.Fatalln(err)
+		}
 
-	_, err = db.Conn.Exec(context.Background(), createCounterTable)
-	if err != nil {
-		log.Fatalln(err)
-	}
+		_, err = db.Conn.Exec(context.Background(), createCounterTable)
+		if err != nil {
+			log.Fatalln(err)
+		}
 
-	_, err = db.Conn.Exec(context.Background(), clearCounter)
-	if err != nil {
-		log.Println(err)
+		_, err = db.Conn.Exec(context.Background(), clearCounter)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	return &db
