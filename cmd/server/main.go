@@ -10,8 +10,8 @@ import (
 
 const (
 	user = "postgres"
-	pass = "OG94Km0XV6xFJrnP"
-	url  = "db.hqtykvrrpeewsakiexbk.supabase.co"
+	pass = "khjw7o9aJmCMVYJJ"
+	url  = "db.zjqldcixgspktmukawkk.supabase.co"
 	port = "5432"
 	db   = "postgres"
 )

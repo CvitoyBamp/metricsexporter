@@ -22,7 +22,8 @@ const (
         value     integer NOT NULL,
         timestamp timestamp,
         UNIQUE (name))`
-	getCount = `WITH counter_count AS (SELECT COUNT(*) cc FROM counterMetrics),
+	clearCounter = `DELETE FROM counterMetrics`
+	getCount     = `WITH counter_count AS (SELECT COUNT(*) cc FROM counterMetrics),
                      gauge_count AS (SELECT COUNT(*) gc FROM gaugeMetrics)
         SELECT cc + gc AS sum_count
         FROM counter_count, gauge_count`
@@ -64,6 +65,11 @@ func CreateDB(pgURL string) *Database {
 		log.Fatalln(err)
 	}
 
+	_, err = db.Conn.Exec(context.Background(), clearCounter)
+	if err != nil {
+		log.Println(err)
+	}
+
 	return &db
 }
 
@@ -80,7 +86,7 @@ func (db Database) SetMetricDB(metricType, metricName, metricValue string) error
 		_, err = db.Conn.Exec(context.Background(),
 			`INSERT INTO counterMetrics (name, value, timestamp)
                  VALUES ($1, $2, $3)
-                 ON CONFLICT (name) DO UPDATE SET value = value + $2, timestamp = $3;`,
+                 ON CONFLICT (name) DO UPDATE SET value = $2, timestamp = $3;`,
 			metricName, value, time.Now())
 		if err != nil {
 			return err
