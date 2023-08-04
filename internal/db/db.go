@@ -43,6 +43,10 @@ func CreateDB(pgURL string) *Database {
 
 	var db Database
 
+	if pgURL == "" {
+		return &db
+	}
+
 	ctx := context.Background()
 
 	connConfig, err := pgx.ParseConfig(pgURL)
