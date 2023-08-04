@@ -27,8 +27,9 @@ func main() {
 		"A path to save file with metrics")
 	flag.BoolVar(&cfg.Restore, "r", true,
 		"Boolean flag to load file with metrics")
-	flag.StringVar(&cfg.DSN, "d", fmt.Sprintf("postgres://%s:%s@%s:%s/%s", user, pass, url, port, db),
+	flag.StringVar(&cfg.DSN, "d", "",
 		"Database DSN")
+	//fmt.Sprintf("postgres://%s:%s@%s:%s/%s", user, pass, url, port, db)
 	flag.Parse()
 
 	err := env.Parse(&cfg)
