@@ -11,7 +11,8 @@ import (
 const (
 	user = "postgres"
 	pass = "khjw7o9aJmCMVYJJ"
-	url  = "db.zjqldcixgspktmukawkk.supabase.co"
+	//url  = "db.zjqldcixgspktmukawkk.supabase.co"
+	url  = "localhost"
 	port = "5432"
 	db   = "postgres"
 )
@@ -29,8 +30,9 @@ func main() {
 		"Boolean flag to load file with metrics")
 	flag.StringVar(&cfg.DSN, "d", "",
 		"Database DSN")
-	//fmt.Sprintf("postgres://%s:%s@%s:%s/%s", user, pass, url, port, db)
 	flag.Parse()
+
+	//fmt.Sprintf("postgres://%s:%s@%s:%s/%s", user, pass, url, port, db)
 
 	err := env.Parse(&cfg)
 	if err != nil {
