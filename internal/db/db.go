@@ -46,7 +46,7 @@ func Retry(attempts int, sleep time.Duration, f func() error) (err error) {
 		err = f()
 		if err != nil {
 			log.Printf("error occured after attempt number %d: %s", i+1, err.Error())
-			log.Println("sleeping for: ", sleep.String())
+			log.Println("sleeping for: ", sleep.Seconds())
 			time.Sleep(sleep)
 			sleep += 2
 			continue
@@ -59,7 +59,6 @@ func Retry(attempts int, sleep time.Duration, f func() error) (err error) {
 func CreateDB(pgURL string) *Database {
 
 	var db Database
-	var errConn error
 
 	attempts := 3
 	duration := 1
@@ -74,21 +73,21 @@ func CreateDB(pgURL string) *Database {
 			log.Fatalf("Can't parse URL of PG DB, err: %s", err)
 		}
 
-		db.Conn, errConn = pgx.ConnectConfig(ctx, connConfig)
+		db.Conn, err = pgx.ConnectConfig(ctx, connConfig)
 
-		if errConn != nil {
-			if pgerrcode.IsConnectionException(errConn.Error()) {
-				errR := Retry(attempts, time.Duration(duration), func() error {
+		if err != nil {
+			if pgerrcode.IsConnectionException(err.Error()) {
+				err = Retry(attempts, time.Duration(duration), func() error {
 
-					db.Conn, errConn = pgx.ConnectConfig(ctx, connConfig)
+					db.Conn, err = pgx.ConnectConfig(ctx, connConfig)
 
-					return errConn
+					return err
 				})
-				if errR != nil {
-					log.Fatalf("Can't create connect to db, err: %s", errR)
+				if err != nil {
+					log.Fatalf("Can't create connect to db, err: %s", err)
 				}
 			}
-			log.Fatalf("Can't create connect to db, err: %s", errConn)
+			log.Fatalf("Can't create connect to db, err: %s", err)
 		}
 
 		_, err = db.Conn.Exec(context.Background(), createGaugeTable)
