@@ -134,3 +134,60 @@ func Decoder(data []byte, ms *storage.MemStorage) error {
 
 	return nil
 }
+
+func ListParser(res http.ResponseWriter, req *http.Request) []Metrics {
+
+	var jsonStruct []Metrics
+
+	if req.Header.Get("Content-Type") != "application/json" {
+		http.Error(res, "Only application/json supported.", http.StatusUnsupportedMediaType)
+	}
+
+	body, errReq := io.ReadAll(req.Body)
+	if errReq != nil {
+		http.Error(res, "Can't read request body", http.StatusBadRequest)
+	}
+
+	err := json.Unmarshal(body, &jsonStruct)
+	if err != nil {
+		http.Error(res, "can't parse json", http.StatusBadRequest)
+	}
+
+	return jsonStruct
+}
+
+func ListCreator(gm map[string]float64, cm map[string]int64) ([]byte, error) {
+
+	var metrics Metrics
+	var metricsList []string
+
+	for k, v := range gm {
+		metrics = Metrics{
+			ID:    k,
+			MType: "gauge",
+			Value: &v,
+		}
+		data, err := json.Marshal(metrics)
+		if err != nil {
+			return nil, err
+		}
+		metricsList = append(metricsList, string(data))
+	}
+
+	for k, v := range cm {
+		metrics = Metrics{
+			ID:    k,
+			MType: "counter",
+			Delta: &v,
+		}
+		data, err := json.Marshal(metrics)
+		if err != nil {
+			return nil, err
+		}
+		metricsList = append(metricsList, string(data))
+	}
+
+	output := "[" + strings.Join(metricsList, ",") + "]"
+
+	return []byte(output), nil
+}

@@ -97,9 +97,57 @@ func (a *Agent) PostMetricJSON(metricType, metricName, metricValue string) error
 	return nil
 }
 
+func (a *Agent) PostMetricsBatch() error {
+	data, errJSON := json.ListCreator(a.Metrics.Gauge, a.Metrics.Counter)
+	if errJSON != nil {
+		log.Printf("can't convert body to json, err: %s", errJSON)
+		return fmt.Errorf("can't convert body to json, err: %s", errJSON)
+	}
+
+	compressedData, errComp := middlewares.Compress(data)
+	if errComp != nil {
+		log.Printf("can't compress data, err: %s", errComp)
+		return fmt.Errorf("can't compress data, err: %s", errComp)
+	}
+
+	url := fmt.Sprintf("http://%s/updates/", a.Endpoint)
+
+	req, errReq := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(compressedData))
+	if errReq != nil {
+		log.Printf("can't create request with body, err: %s", errReq)
+		return fmt.Errorf("can't create request with body, err: %s", errReq)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("Accept-Encoding", "gzip")
+
+	res, err := a.Client.Do(req)
+	if err != nil {
+		log.Printf("can't POST batch of metrics")
+		return fmt.Errorf("can't POST to URL, err: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("status code not equal 200: %v", res.StatusCode)
+	}
+
+	log.Printf("Batch of metrics was successfully posted.")
+
+	return nil
+}
+
 func (a *Agent) PostMetrics(types string) {
 	a.Metrics.RLock()
 	defer a.Metrics.RUnlock()
+
+	if types == "batch" {
+		err := a.PostMetricsBatch()
+		if err != nil {
+			_ = fmt.Errorf("can't POST to URL, err: %v", err)
+		}
+	}
 
 	for k, v := range a.Metrics.Gauge {
 		if types == "json" {

@@ -17,13 +17,6 @@ type MetricsList struct {
 	MetricValue string
 }
 
-type JSONMetrics struct {
-	ID    string   `json:"id"`              // имя метрики
-	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
-	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
-	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
-}
-
 var htmlTemplate = `
 <!DOCTYPE html>
 <html lang="en">
@@ -61,6 +54,9 @@ func (s *CustomServer) MetricRouter() chi.Router {
 			r.Route("/update", func(r chi.Router) {
 				r.Post("/", middlewares.Logging(s.createJSONMetricHandler()))
 				r.Post("/{metricType}/{metricName}/{metricValue}", middlewares.Logging(s.metricCreatorHandler()))
+			})
+			r.Route("/updates", func(r chi.Router) {
+				r.Post("/", middlewares.Logging(s.createJSONMetricsHandler()))
 			})
 		})
 	})
@@ -179,6 +175,44 @@ func (s *CustomServer) getJSONMetricHandler() http.Handler {
 	fn := func(res http.ResponseWriter, req *http.Request) {
 		data := json.Parser(res, req)
 		s.GetMetric(data.MType, data.ID, res, req)
+	}
+	return http.HandlerFunc(fn)
+}
+
+func (s *CustomServer) createJSONMetricsHandler() http.Handler {
+	fn := func(res http.ResponseWriter, req *http.Request) {
+
+		data := json.ListParser(res, req)
+
+		for _, metric := range data {
+			if metric.MType != "gauge" && metric.MType != "counter" {
+				e := fmt.Sprintf("Incorrect metric type, gauge or counter is expected, check %s metric type.", metric.ID)
+				http.Error(res, e, http.StatusBadRequest)
+				log.Println(e)
+				return
+			} else if metric.MType == "gauge" {
+				err := s.CheckAndSetMetric(metric.MType, metric.ID, strconv.FormatFloat(*metric.Value, 'f', -1, 64))
+				if err != nil {
+					http.Error(res, fmt.Sprintf("%s.", err), http.StatusBadRequest)
+					log.Println("can't add metric to storage")
+					return
+				}
+			} else if metric.MType == "counter" {
+				err := s.CheckAndSetMetric(metric.MType, metric.ID, strconv.FormatInt(*metric.Delta, 10))
+				if err != nil {
+					http.Error(res, fmt.Sprintf("%s.", err), http.StatusBadRequest)
+					log.Println("can't add metric to storage")
+					return
+				}
+			}
+		}
+
+		if s.Config.StoreInterval == 0 && s.Config.FilePath != "" && s.Config.DSN == "" {
+			s.SyncSavingToFile()
+		}
+		res.WriteHeader(http.StatusOK)
+		res.Header().Set("Content-Type", "application/json")
+		log.Printf("Batch of metrics was added")
 	}
 	return http.HandlerFunc(fn)
 }
