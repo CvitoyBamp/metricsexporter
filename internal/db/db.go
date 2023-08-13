@@ -59,8 +59,7 @@ func Retry(attempts int, sleep time.Duration, f func() error) (err error) {
 func CreateDB(pgURL string) *Database {
 
 	var db Database
-	var connConfig *pgx.ConnConfig
-	var err error
+	var errConn error
 
 	attempts := 3
 	duration := 1
@@ -69,36 +68,42 @@ func CreateDB(pgURL string) *Database {
 
 		ctx := context.Background()
 
-		connConfig, err = pgx.ParseConfig(pgURL)
+		connConfig, errConf := pgx.ParseConfig(pgURL)
 
-		db.Conn, err = pgx.ConnectConfig(ctx, connConfig)
+		if errConf != nil {
+			log.Fatalf("Can't parse URL of PG DB, err: %s", errConf)
+		}
 
-		_, err = db.Conn.Exec(context.Background(), createGaugeTable)
+		db.Conn, errConn = pgx.ConnectConfig(ctx, connConfig)
 
-		_, err = db.Conn.Exec(context.Background(), createCounterTable)
-
-		_, err = db.Conn.Exec(context.Background(), clearCounter)
-
-		if err != nil {
-			if pgerrcode.IsConnectionException(err.Error()) {
+		if errConn != nil {
+			if pgerrcode.IsConnectionException(errConn.Error()) {
 				errR := Retry(attempts, time.Duration(duration), func() error {
 
-					connConfig, err = pgx.ParseConfig(pgURL)
+					db.Conn, errConn = pgx.ConnectConfig(ctx, connConfig)
 
-					db.Conn, err = pgx.ConnectConfig(ctx, connConfig)
-
-					_, err = db.Conn.Exec(context.Background(), createGaugeTable)
-
-					_, err = db.Conn.Exec(context.Background(), createCounterTable)
-
-					_, err = db.Conn.Exec(context.Background(), clearCounter)
-
-					return err
+					return errConn
 				})
 				if errR != nil {
 					log.Fatalf("Can't create connect to db, err: %s", errR)
 				}
 			}
+			log.Fatalf("Can't create connect to db, err: %s", errConn)
+		}
+
+		_, err := db.Conn.Exec(context.Background(), createGaugeTable)
+		if err != nil {
+			log.Fatalf("Can't create table with gauge metrics, err: %s", err)
+		}
+
+		_, err = db.Conn.Exec(context.Background(), createCounterTable)
+		if err != nil {
+			log.Fatalf("Can't create table with counter metrics, err: %s", err)
+		}
+
+		_, err = db.Conn.Exec(context.Background(), clearCounter)
+		if err != nil {
+			log.Fatalf("Can't trunc counter table, err: %s", err)
 		}
 	}
 
