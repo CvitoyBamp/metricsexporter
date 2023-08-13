@@ -68,10 +68,10 @@ func CreateDB(pgURL string) *Database {
 
 		ctx := context.Background()
 
-		connConfig, errConf := pgx.ParseConfig(pgURL)
+		connConfig, err := pgx.ParseConfig(pgURL)
 
-		if errConf != nil {
-			log.Fatalf("Can't parse URL of PG DB, err: %s", errConf)
+		if err != nil {
+			log.Fatalf("Can't parse URL of PG DB, err: %s", err)
 		}
 
 		db.Conn, errConn = pgx.ConnectConfig(ctx, connConfig)
@@ -91,7 +91,7 @@ func CreateDB(pgURL string) *Database {
 			log.Fatalf("Can't create connect to db, err: %s", errConn)
 		}
 
-		_, err := db.Conn.Exec(context.Background(), createGaugeTable)
+		_, err = db.Conn.Exec(context.Background(), createGaugeTable)
 		if err != nil {
 			log.Fatalf("Can't create table with gauge metrics, err: %s", err)
 		}
