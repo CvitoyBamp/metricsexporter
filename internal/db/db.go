@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"log"
 	"strconv"
@@ -39,37 +40,65 @@ type Metrics struct {
 	metricValue string
 }
 
+func Retry(attempts int, sleep time.Duration, f func() error) (err error) {
+	for i := 1; i <= attempts; i++ {
+		log.Printf("This is attempt number %d", i)
+		err = f()
+		if err != nil {
+			log.Printf("error occured after attempt number %d: %s", i+1, err.Error())
+			log.Println("sleeping for: ", sleep.String())
+			time.Sleep(sleep)
+			sleep += 2
+			continue
+		}
+		break
+	}
+	return
+}
+
 func CreateDB(pgURL string) *Database {
 
 	var db Database
+	var connConfig *pgx.ConnConfig
+	var err error
+
+	attempts := 3
+	duration := 1
 
 	if pgURL != "" {
 
 		ctx := context.Background()
 
-		connConfig, err := pgx.ParseConfig(pgURL)
-		if err != nil {
-			log.Fatalln(err)
-		}
+		connConfig, err = pgx.ParseConfig(pgURL)
 
 		db.Conn, err = pgx.ConnectConfig(ctx, connConfig)
-		if err != nil {
-			log.Fatalln(err)
-		}
 
 		_, err = db.Conn.Exec(context.Background(), createGaugeTable)
-		if err != nil {
-			log.Fatalln(err)
-		}
 
 		_, err = db.Conn.Exec(context.Background(), createCounterTable)
-		if err != nil {
-			log.Fatalln(err)
-		}
 
 		_, err = db.Conn.Exec(context.Background(), clearCounter)
+
 		if err != nil {
-			log.Println(err)
+			if pgerrcode.IsConnectionException(err.Error()) {
+				errR := Retry(attempts, time.Duration(duration), func() error {
+
+					connConfig, err = pgx.ParseConfig(pgURL)
+
+					db.Conn, err = pgx.ConnectConfig(ctx, connConfig)
+
+					_, err = db.Conn.Exec(context.Background(), createGaugeTable)
+
+					_, err = db.Conn.Exec(context.Background(), createCounterTable)
+
+					_, err = db.Conn.Exec(context.Background(), clearCounter)
+
+					return err
+				})
+				if errR != nil {
+					log.Fatalf("Can't create connect to db, err: %s", errR)
+				}
+			}
 		}
 	}
 

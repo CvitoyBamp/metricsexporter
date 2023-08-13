@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"fmt"
+	"github.com/CvitoyBamp/metricsexporter/internal/db"
 	"github.com/CvitoyBamp/metricsexporter/internal/json"
 	"github.com/CvitoyBamp/metricsexporter/internal/metrics"
 	"github.com/CvitoyBamp/metricsexporter/internal/middlewares"
@@ -138,14 +139,14 @@ func (a *Agent) PostMetricsBatch() error {
 	return nil
 }
 
-func (a *Agent) PostMetrics(types string) {
+func (a *Agent) PostMetrics(types string) error {
 	a.Metrics.RLock()
 	defer a.Metrics.RUnlock()
 
 	if types == "batch" {
 		err := a.PostMetricsBatch()
 		if err != nil {
-			_ = fmt.Errorf("can't POST to URL, err: %v", err)
+			return fmt.Errorf("can't POST to URL, err: %v", err)
 		}
 	}
 
@@ -153,13 +154,13 @@ func (a *Agent) PostMetrics(types string) {
 		if types == "json" {
 			err := a.PostMetricJSON("gauge", k, strconv.FormatFloat(v, 'f', -1, 64))
 			if err != nil {
-				_ = fmt.Errorf("can't POST to URL, err: %v", err)
+				return fmt.Errorf("can't POST to URL, err: %v", err)
 			}
 		}
 		if types == "url" {
 			err := a.PostMetricURL("gauge", k, strconv.FormatFloat(v, 'f', -1, 64))
 			if err != nil {
-				_ = fmt.Errorf("can't POST to URL, err: %v", err)
+				return fmt.Errorf("can't POST to URL, err: %v", err)
 			}
 		}
 	}
@@ -167,28 +168,37 @@ func (a *Agent) PostMetrics(types string) {
 		if types == "json" {
 			err := a.PostMetricJSON("counter", k, strconv.FormatInt(v, 10))
 			if err != nil {
-				_ = fmt.Errorf("can't POST to URL, err: %v", err)
+				return fmt.Errorf("can't POST to URL, err: %v", err)
 			}
 		}
 		if types == "url" {
 			err := a.PostMetricURL("counter", k, strconv.FormatInt(v, 10))
 			if err != nil {
-				_ = fmt.Errorf("can't POST to URL, err: %v", err)
+				return fmt.Errorf("can't POST to URL, err: %v", err)
 			}
 		}
 	}
+	return nil
 }
 
 func (a *Agent) RunAgent(pollInterval, reportInterval int) {
 	rI := time.NewTicker(time.Duration(reportInterval) * time.Second)
 	pI := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	attempts := 3
+	duration := 1
 
 	for {
 		select {
 		case <-pI.C:
 			a.Metrics.MetricGenerator(runtime.MemStats{})
 		case <-rI.C:
-			a.PostMetrics("url")
+			err := db.Retry(attempts, time.Duration(duration), func() error {
+				err := a.PostMetrics("url")
+				return err
+			})
+			if err != nil {
+				log.Print(err)
+			}
 		}
 	}
 }
