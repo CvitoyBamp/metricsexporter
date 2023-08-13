@@ -59,6 +59,8 @@ func Retry(attempts int, sleep time.Duration, f func() error) (err error) {
 func CreateDB(pgURL string) *Database {
 
 	var db Database
+	var connConfig *pgx.ConnConfig
+	var err error
 
 	attempts := 3
 	duration := 1
@@ -67,47 +69,94 @@ func CreateDB(pgURL string) *Database {
 
 		ctx := context.Background()
 
-		connConfig, err := pgx.ParseConfig(pgURL)
-
-		if err != nil {
-			log.Fatalf("Can't parse URL of PG DB, err: %s", err)
-		}
+		connConfig, err = pgx.ParseConfig(pgURL)
 
 		db.Conn, err = pgx.ConnectConfig(ctx, connConfig)
 
+		_, err = db.Conn.Exec(context.Background(), createGaugeTable)
+
+		_, err = db.Conn.Exec(context.Background(), createCounterTable)
+
+		_, err = db.Conn.Exec(context.Background(), clearCounter)
+
 		if err != nil {
+			log.Println(err)
 			if pgerrcode.IsConnectionException(err.Error()) {
-				err = Retry(attempts, time.Duration(duration), func() error {
+				errR := Retry(attempts, time.Duration(duration), func() error {
+
+					connConfig, err = pgx.ParseConfig(pgURL)
 
 					db.Conn, err = pgx.ConnectConfig(ctx, connConfig)
 
+					_, err = db.Conn.Exec(context.Background(), createGaugeTable)
+
+					_, err = db.Conn.Exec(context.Background(), createCounterTable)
+
+					_, err = db.Conn.Exec(context.Background(), clearCounter)
+
 					return err
 				})
-				if err != nil {
-					log.Fatalf("Can't create connect to db, err: %s", err)
+				if errR != nil {
+					log.Fatalf("Can't create connect to db, err: %s", errR)
 				}
 			}
-			log.Fatalf("Can't create connect to db, err: %s", err)
-		}
-
-		_, err = db.Conn.Exec(context.Background(), createGaugeTable)
-		if err != nil {
-			log.Fatalf("Can't create table with gauge metrics, err: %s", err)
-		}
-
-		_, err = db.Conn.Exec(context.Background(), createCounterTable)
-		if err != nil {
-			log.Fatalf("Can't create table with counter metrics, err: %s", err)
-		}
-
-		_, err = db.Conn.Exec(context.Background(), clearCounter)
-		if err != nil {
-			log.Fatalf("Can't trunc counter table, err: %s", err)
 		}
 	}
-
 	return &db
 }
+
+//func CreateDB(pgURL string) *Database {
+//
+//	var db Database
+//
+//	attempts := 3
+//	duration := 1
+//
+//	if pgURL != "" {
+//
+//		ctx := context.Background()
+//
+//		connConfig, err := pgx.ParseConfig(pgURL)
+//
+//		if err != nil {
+//			log.Fatalf("Can't parse URL of PG DB, err: %s", err)
+//		}
+//
+//		db.Conn, err = pgx.ConnectConfig(ctx, connConfig)
+//
+//		if err != nil {
+//			if pgerrcode.IsConnectionException(err.Error()) {
+//				err = Retry(attempts, time.Duration(duration), func() error {
+//
+//					db.Conn, err = pgx.ConnectConfig(ctx, connConfig)
+//
+//					return err
+//				})
+//				if err != nil {
+//					log.Fatalf("Can't create connect to db, err: %s", err)
+//				}
+//			}
+//			log.Fatalf("Can't create connect to db, err: %s", err)
+//		}
+//
+//		_, err = db.Conn.Exec(context.Background(), createGaugeTable)
+//		if err != nil {
+//			log.Fatalf("Can't create table with gauge metrics, err: %s", err)
+//		}
+//
+//		_, err = db.Conn.Exec(context.Background(), createCounterTable)
+//		if err != nil {
+//			log.Fatalf("Can't create table with counter metrics, err: %s", err)
+//		}
+//
+//		_, err = db.Conn.Exec(context.Background(), clearCounter)
+//		if err != nil {
+//			log.Fatalf("Can't trunc counter table, err: %s", err)
+//		}
+//	}
+//
+//	return &db
+//}
 
 func (db Database) CheckConnectivity() error {
 	return db.Conn.Ping(context.Background())
