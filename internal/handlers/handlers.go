@@ -190,14 +190,18 @@ func (s *CustomServer) createJSONMetricsHandler() http.Handler {
 				http.Error(res, e, http.StatusBadRequest)
 				log.Println(e)
 				return
-			} else if metric.MType == "gauge" {
+			}
+
+			if metric.MType == "gauge" {
 				err := s.CheckAndSetMetric(metric.MType, metric.ID, strconv.FormatFloat(*metric.Value, 'f', -1, 64))
 				if err != nil {
 					http.Error(res, fmt.Sprintf("%s.", err), http.StatusBadRequest)
 					log.Println("can't add metric to storage ", err)
 					return
 				}
-			} else if metric.MType == "counter" {
+			}
+
+			if metric.MType == "counter" {
 				err := s.CheckAndSetMetric(metric.MType, metric.ID, strconv.FormatInt(*metric.Delta, 10))
 				if err != nil {
 					http.Error(res, fmt.Sprintf("%s.", err), http.StatusBadRequest)

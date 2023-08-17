@@ -48,7 +48,7 @@ func Retry(attempts int, sleep time.Duration, f func() error) (err error) {
 			log.Printf("error occured after attempt number %d: %s", i+1, err.Error())
 			log.Println("sleeping for: ", sleep.Seconds())
 			time.Sleep(sleep)
-			sleep += 2
+			sleep += 2 * time.Second
 			continue
 		}
 		break
