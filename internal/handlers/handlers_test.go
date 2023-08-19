@@ -59,6 +59,17 @@ func TestMetricCreatorHandler(t *testing.T) {
 			},
 		},
 		{
+			testName: "Metric was successfully added",
+			request: request{
+				url:    "/update/counter/testCounter/100",
+				method: http.MethodPost,
+			},
+			wants: wants{
+				code:        http.StatusOK,
+				contentType: "text/plain",
+			},
+		},
+		{
 			testName: "Not correct URL for a POST-method",
 			request: request{
 				url:    "/update/gauge/testGauge/100.1",

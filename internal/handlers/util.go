@@ -14,11 +14,24 @@ func (s *CustomServer) CheckAndSetMetric(metricType, metricName, metricValue str
 		log.Printf("Incorrect metric type recieved: %s", metricType)
 		return fmt.Errorf("incorrect metric type, gauge or counter is expected")
 	}
-	return s.Storage.SetMetric(metricType, metricName, metricValue)
+
+	if s.Config.DSN != "" {
+		return s.DB.SetMetricDB(metricType, metricName, metricValue)
+	} else {
+		return s.Storage.SetMetric(metricType, metricName, metricValue)
+	}
 }
 
 func (s *CustomServer) GetMetric(metricType, metricName string, res http.ResponseWriter, req *http.Request) {
-	metricValue, err := s.Storage.GetMetric(metricType, metricName)
+
+	var err error
+	var metricValue string
+
+	if s.Config.DSN != "" {
+		metricValue, err = s.DB.GetMetricDB(metricType, metricName)
+	} else {
+		metricValue, err = s.Storage.GetMetric(metricType, metricName)
+	}
 
 	if err != nil {
 		log.Printf("No such metric in storage: %s", metricName)

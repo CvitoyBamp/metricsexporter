@@ -8,28 +8,39 @@ import (
 	"log"
 )
 
+const (
+	user = "postgres"
+	pass = "khjw7o9aJmCMVYJJ"
+	url  = "db.zjqldcixgspktmukawkk.supabase.co"
+	port = "5432"
+	db   = "postgres"
+)
+
 func main() {
 	var cfg handlers.Config
 
 	flag.StringVar(&cfg.Address, "a", "localhost:8080",
 		"An address the server run")
-	flag.IntVar(&cfg.StoreInterval, "i", 0,
+	flag.IntVar(&cfg.StoreInterval, "i", 300,
 		"An interval for saving metrics to file")
 	flag.StringVar(&cfg.FilePath, "f", "metrics-db.json",
 		"A path to save file with metrics")
 	flag.BoolVar(&cfg.Restore, "r", true,
 		"Boolean flag to load file with metrics")
+	flag.StringVar(&cfg.DSN, "d", "",
+		"Database DSN")
 	flag.Parse()
+
+	//fmt.Sprintf("postgres://%s:%s@%s:%s/%s", user, pass, url, port, db)
 
 	err := env.Parse(&cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-	flag.Parse()
 
 	server := handlers.CreateServer(cfg)
 
-	if cfg.Restore && cfg.FilePath != "" {
+	if cfg.Restore && cfg.FilePath != "" && cfg.DSN == "" {
 		errLoad := server.PreloadMetrics()
 		if errLoad != nil {
 			if fmt.Sprintf("%s", errLoad) == "EOF" {
@@ -40,7 +51,7 @@ func main() {
 		}
 	}
 
-	if cfg.StoreInterval > 0 && cfg.FilePath != "" {
+	if cfg.StoreInterval > 0 && cfg.FilePath != "" && cfg.DSN == "" {
 		go func() {
 			server.PostSaveMetrics()
 		}()
