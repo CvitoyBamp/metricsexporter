@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"fmt"
+	"github.com/CvitoyBamp/metricsexporter/internal/crypto"
 	"github.com/CvitoyBamp/metricsexporter/internal/db"
 	"github.com/CvitoyBamp/metricsexporter/internal/json"
 	"github.com/CvitoyBamp/metricsexporter/internal/metrics"
@@ -14,22 +15,31 @@ import (
 	"time"
 )
 
+type Config struct {
+	Address        string `env:"ADDRESS"`
+	ReportInterval int    `env:"REPORT_INTERVAL"`
+	PollInterval   int    `env:"POLL_INTERVAL"`
+	Key            string `env:"KEY"`
+}
+
 type Agent struct {
 	Client   *http.Client
 	Endpoint string
 	Metrics  *metrics.Metrics
+	Config   *Config
 }
 
-func CreateAgent(endpoint string) *Agent {
+func CreateAgent(cfg Config) *Agent {
 	return &Agent{
 		Client: &http.Client{
 			Timeout: 1 * time.Second,
 		},
-		Endpoint: endpoint,
+		Endpoint: cfg.Address,
 		Metrics: &metrics.Metrics{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
 		},
+		Config: &cfg,
 	}
 }
 
@@ -82,6 +92,10 @@ func (a *Agent) PostMetricJSON(metricType, metricName, metricValue string) error
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
 
+	if a.Config.Key != "" {
+		req.Header.Set("HashSHA256", crypto.CreateHash(compressedData, a.Config.Key))
+	}
+
 	res, err := a.Client.Do(req)
 	if err != nil {
 		log.Printf("metric %s with value %s was wasn't posted to %s\n", metricName, metricValue, url)
@@ -122,6 +136,10 @@ func (a *Agent) PostMetricsBatch() error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
+
+	if a.Config.Key != "" {
+		req.Header.Set("HashSHA256", crypto.CreateHash(compressedData, a.Config.Key))
+	}
 
 	res, err := a.Client.Do(req)
 	if err != nil {
