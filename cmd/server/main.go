@@ -29,6 +29,8 @@ func main() {
 		"Boolean flag to load file with metrics")
 	flag.StringVar(&cfg.DSN, "d", "",
 		"Database DSN")
+	flag.StringVar(&cfg.Key, "k", "someKey",
+		"Key for decrypting")
 	flag.Parse()
 
 	//fmt.Sprintf("postgres://%s:%s@%s:%s/%s", user, pass, url, port, db)
