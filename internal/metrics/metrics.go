@@ -1,63 +1,62 @@
 package metrics
 
 import (
-	"math/rand"
+	"github.com/CvitoyBamp/metricsexporter/internal/storage"
+	"github.com/shirou/gopsutil/v3/mem"
+	"log"
 	"reflect"
 	"runtime"
-	"sync"
 )
 
-type Metrics struct {
-	sync.RWMutex
-	Gauge   map[string]float64
-	Counter map[string]int64
-}
-
-type RuntimeMetrics struct {
-	sync.RWMutex
-	m map[string]float64
-}
-
-func getRuntimeMetrics(m *runtime.MemStats) *RuntimeMetrics {
+func getRuntimeMetrics(m *runtime.MemStats, liveMetrics *storage.MemStorage) {
 	metrics := reflect.ValueOf(m)
-	runtimeMetrics := &RuntimeMetrics{
-		m: make(map[string]float64),
-	}
 
 	if metrics.Kind() == reflect.Ptr {
 		metrics = metrics.Elem()
 	}
 
-	runtimeMetrics.Lock()
-	defer runtimeMetrics.Unlock()
+	//liveMetrics.Lock()
+	//defer liveMetrics.Unlock()
 	for i := 0; i < metrics.NumField(); i++ {
 		metricName := metrics.Type().Field(i).Name
 		metricValue := reflect.Indirect(metrics).FieldByName(metricName)
 		switch metricValue.Type().Name() {
 		case "float64":
-			runtimeMetrics.m[metricName] = metricValue.Interface().(float64)
+			liveMetrics.Gauge[metricName] = metricValue.Interface().(float64)
 		case "uint64":
-			runtimeMetrics.m[metricName] = float64(metricValue.Interface().(uint64))
+			liveMetrics.Gauge[metricName] = float64(metricValue.Interface().(uint64))
 		case "uint32":
-			runtimeMetrics.m[metricName] = float64(metricValue.Interface().(uint32))
+			liveMetrics.Gauge[metricName] = float64(metricValue.Interface().(uint32))
 		default:
 			continue
 		}
 	}
-
-	return runtimeMetrics
 }
 
-func (ms *Metrics) MetricGenerator(rm runtime.MemStats) *Metrics {
-	runtime.ReadMemStats(&rm)
-
-	ms.Lock()
-	for k, v := range getRuntimeMetrics(&rm).m {
-		ms.Gauge[k] = v
+func getGopsMetrics(liveMetrics *storage.MemStorage) {
+	v, err := mem.VirtualMemory()
+	if err != nil {
+		log.Printf("can't get gops metrics, err: %v", err.Error())
 	}
-	ms.Gauge["RandomValue"] = rand.Float64()
-	ms.Counter["PollCount"] += 1
-	ms.Unlock()
 
-	return ms
+	//liveMetrics.Lock()
+	//defer liveMetrics.Unlock()
+	liveMetrics.Gauge["TotalMemory"] = float64(v.Total)
+	liveMetrics.Gauge["FreeMemory"] = float64(v.Free)
+	liveMetrics.Gauge["CPUutilization1 "] = v.UsedPercent
+}
+
+func getCounterMetrics(liveMetrics *storage.MemStorage) {
+	//liveMetrics.Lock()
+	liveMetrics.Counter["PollCount"] += 1
+	//liveMetrics.Unlock()
+}
+
+func MetricGenerator(rm runtime.MemStats, liveMetrics *storage.MemStorage, ch chan storage.MemStorage) {
+	runtime.ReadMemStats(&rm)
+	getRuntimeMetrics(&rm, liveMetrics)
+	getGopsMetrics(liveMetrics)
+	getCounterMetrics(liveMetrics)
+
+	ch <- *liveMetrics
 }

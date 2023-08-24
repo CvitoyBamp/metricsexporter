@@ -8,10 +8,11 @@ import (
 	"github.com/CvitoyBamp/metricsexporter/internal/json"
 	"github.com/CvitoyBamp/metricsexporter/internal/metrics"
 	"github.com/CvitoyBamp/metricsexporter/internal/middlewares"
+	"github.com/CvitoyBamp/metricsexporter/internal/storage"
 	"log"
 	"net/http"
 	"runtime"
-	"strconv"
+	"sync"
 	"time"
 )
 
@@ -20,12 +21,13 @@ type Config struct {
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	Key            string `env:"KEY"`
+	RateLimit      int    `env:"RATE_LIMIT"`
 }
 
 type Agent struct {
 	Client   *http.Client
 	Endpoint string
-	Metrics  *metrics.Metrics
+	Metrics  *storage.MemStorage
 	Config   *Config
 }
 
@@ -35,11 +37,8 @@ func CreateAgent(cfg Config) *Agent {
 			Timeout: 1 * time.Second,
 		},
 		Endpoint: cfg.Address,
-		Metrics: &metrics.Metrics{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64),
-		},
-		Config: &cfg,
+		Metrics:  storage.CreateMemStorage(),
+		Config:   &cfg,
 	}
 }
 
@@ -112,8 +111,9 @@ func (a *Agent) PostMetricJSON(metricType, metricName, metricValue string) error
 	return nil
 }
 
-func (a *Agent) PostMetricsBatch() error {
-	data, errJSON := json.ListCreator(a.Metrics.Gauge, a.Metrics.Counter)
+func (a *Agent) PostMetricsBatch(ch chan storage.MemStorage) error {
+	m := <-ch
+	data, errJSON := json.ListCreator(m.Gauge, m.Counter)
 	if errJSON != nil {
 		log.Printf("can't convert body to json, err: %s", errJSON)
 		return fmt.Errorf("can't convert body to json, err: %s", errJSON)
@@ -157,66 +157,125 @@ func (a *Agent) PostMetricsBatch() error {
 	return nil
 }
 
-func (a *Agent) PostMetrics(types string) error {
-	a.Metrics.RLock()
-	defer a.Metrics.RUnlock()
+//func (a *Agent) PostMetrics(types string, i json.Metrics) error {
+//	a.Metrics.RLock()
+//	defer a.Metrics.RUnlock()
+//
+//	if types == "batch" {
+//		err := a.PostMetricsBatch()
+//		if err != nil {
+//			return fmt.Errorf("can't POST to URL, err: %v", err)
+//		}
+//	}
+//
+//		if types == "json" {
+//			if i.MType == "gauge" {
+//				err := a.PostMetricJSON(i.MType, i.ID, strconv.FormatFloat(*i.Value, 'f', -1, 64))
+//				if err != nil {
+//					return fmt.Errorf("can't POST to URL, err: %v", err)
+//				}
+//			}
+//			if i.MType == "counter" {
+//				err := a.PostMetricJSON(i.MType, i.ID, strconv.FormatInt(*i.Delta, 10))
+//				if err != nil {
+//					return fmt.Errorf("can't POST to URL, err: %v", err)
+//				}
+//			}
+//		}
+//		if types == "url" {
+//			if i.MType == "gauge" {
+//				err := a.PostMetricURL(i.MType, i.ID, strconv.FormatFloat(*i.Value, 'f', -1, 64))
+//				if err != nil {
+//					return fmt.Errorf("can't POST to URL, err: %v", err)
+//				}
+//			}
+//			if i.MType == "counter" {
+//				err := a.PostMetricURL(i.MType, i.ID, strconv.FormatInt(*i.Delta, 10))
+//				if err != nil {
+//					return fmt.Errorf("can't POST to URL, err: %v", err)
+//				}
+//			}
+//		}
+//	return nil
+//}
+
+func (a *Agent) worker(types string, job chan storage.MemStorage) error {
 
 	if types == "batch" {
-		err := a.PostMetricsBatch()
+		err := a.PostMetricsBatch(job)
 		if err != nil {
 			return fmt.Errorf("can't POST to URL, err: %v", err)
 		}
 	}
 
-	for k, v := range a.Metrics.Gauge {
-		if types == "json" {
-			err := a.PostMetricJSON("gauge", k, strconv.FormatFloat(v, 'f', -1, 64))
-			if err != nil {
-				return fmt.Errorf("can't POST to URL, err: %v", err)
-			}
-		}
-		if types == "url" {
-			err := a.PostMetricURL("gauge", k, strconv.FormatFloat(v, 'f', -1, 64))
-			if err != nil {
-				return fmt.Errorf("can't POST to URL, err: %v", err)
-			}
-		}
-	}
-	for k, v := range a.Metrics.Counter {
-		if types == "json" {
-			err := a.PostMetricJSON("counter", k, strconv.FormatInt(v, 10))
-			if err != nil {
-				return fmt.Errorf("can't POST to URL, err: %v", err)
-			}
-		}
-		if types == "url" {
-			err := a.PostMetricURL("counter", k, strconv.FormatInt(v, 10))
-			if err != nil {
-				return fmt.Errorf("can't POST to URL, err: %v", err)
-			}
-		}
-	}
+	//for i := range job {
+	//	if types == "json" {
+	//		if i.MType == "gauge" {
+	//			err := a.PostMetricJSON(i.MType, i.ID, strconv.FormatFloat(*i.Value, 'f', -1, 64))
+	//			if err != nil {
+	//				return fmt.Errorf("can't POST to URL, err: %v", err)
+	//			}
+	//		}
+	//		if i.MType == "counter" {
+	//			err := a.PostMetricJSON(i.MType, i.ID, strconv.FormatInt(*i.Delta, 10))
+	//			if err != nil {
+	//				return fmt.Errorf("can't POST to URL, err: %v", err)
+	//			}
+	//		}
+	//	}
+	//	if types == "url" {
+	//		if i.MType == "gauge" {
+	//			err := a.PostMetricURL(i.MType, i.ID, strconv.FormatFloat(*i.Value, 'f', -1, 64))
+	//			if err != nil {
+	//				return fmt.Errorf("can't POST to URL, err: %v", err)
+	//			}
+	//		}
+	//		if i.MType == "counter" {
+	//			err := a.PostMetricURL(i.MType, i.ID, strconv.FormatInt(*i.Delta, 10))
+	//			if err != nil {
+	//				return fmt.Errorf("can't POST to URL, err: %v", err)
+	//			}
+	//		}
+	//	}
+	//}
 	return nil
 }
 
-func (a *Agent) RunAgent(pollInterval, reportInterval int) {
-	rI := time.NewTicker(time.Duration(reportInterval) * time.Second)
-	pI := time.NewTicker(time.Duration(pollInterval) * time.Second)
+func (a *Agent) RunAgent() {
+	rI := time.NewTicker(time.Duration(a.Config.ReportInterval) * time.Second)
+	//pI := time.NewTicker(time.Duration(a.Config.PollInterval) * time.Second)
 	attempts := 3
 	duration := 1
 
+	job := make(chan storage.MemStorage, a.Config.RateLimit)
+	defer close(job)
+
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	func(duration time.Duration) {
+		for {
+			time.Sleep(duration)
+			go metrics.MetricGenerator(runtime.MemStats{}, a.Metrics, job)
+			log.Println(<-job)
+		}
+	}(time.Duration(a.Config.PollInterval) * time.Second)
+
 	for {
 		select {
-		case <-pI.C:
-			a.Metrics.MetricGenerator(runtime.MemStats{})
 		case <-rI.C:
-			err := db.Retry(attempts, time.Duration(duration), func() error {
-				err := a.PostMetrics("url")
-				return err
-			})
-			if err != nil {
-				log.Print(err)
+			for w := 1; w <= a.Config.RateLimit; w++ {
+				err := db.Retry(attempts, time.Duration(duration), func() error {
+					err := a.worker("batch", job)
+					return err
+				})
+				if err != nil {
+					log.Println(err)
+				}
+
 			}
 		}
 	}
+
+	wg.Wait()
 }

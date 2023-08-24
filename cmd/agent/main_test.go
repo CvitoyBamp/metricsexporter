@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/CvitoyBamp/metricsexporter/internal/agent"
 	"github.com/CvitoyBamp/metricsexporter/internal/handlers"
-	"github.com/CvitoyBamp/metricsexporter/internal/metrics"
 	"github.com/CvitoyBamp/metricsexporter/internal/storage"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -48,10 +47,7 @@ func Test_main(t *testing.T) {
 		Client: &http.Client{
 			Timeout: 1 * time.Second,
 		},
-		Metrics: &metrics.Metrics{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64),
-		},
+		Metrics: storage.CreateMemStorage(),
 	}
 
 	tests := []struct {

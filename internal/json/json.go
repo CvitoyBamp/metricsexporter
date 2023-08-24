@@ -73,8 +73,8 @@ func Creator(metricValue, metricType, metricName string) ([]byte, error) {
 
 func MetricConverter(ms *storage.MemStorage) ([]byte, error) {
 
-	ms.RLock()
-	defer ms.RUnlock()
+	//ms.RLock()
+	//defer ms.RUnlock()
 
 	var arr []string
 	var metric Metrics

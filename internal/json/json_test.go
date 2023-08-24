@@ -89,8 +89,6 @@ func TestParser(t *testing.T) {
 
 func TestMetricConverter(t *testing.T) {
 
-	ms := storage.CreateMemStorage()
-
 	tests := []struct {
 		testName string
 		resp     string
@@ -118,13 +116,12 @@ func TestMetricConverter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
+			ms := storage.CreateMemStorage()
 			errSet := ms.SetMetric(tt.data.metricType, tt.data.metricName, tt.data.metricValue)
 			require.NoError(t, errSet)
 			b, errConv := MetricConverter(ms)
 			require.NoError(t, errConv)
 			assert.Equal(t, tt.resp, string(b))
-			errDel := ms.DeleteMetric(tt.data.metricType, tt.data.metricName)
-			require.NoError(t, errDel)
 		})
 	}
 }
