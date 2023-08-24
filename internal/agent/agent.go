@@ -2,12 +2,14 @@ package agent
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/CvitoyBamp/metricsexporter/internal/crypto"
 	"github.com/CvitoyBamp/metricsexporter/internal/db"
 	"github.com/CvitoyBamp/metricsexporter/internal/json"
 	"github.com/CvitoyBamp/metricsexporter/internal/metrics"
 	"github.com/CvitoyBamp/metricsexporter/internal/middlewares"
+	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
 	"runtime"
@@ -20,6 +22,7 @@ type Config struct {
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	Key            string `env:"KEY"`
+	RateLimit      int    `env:"RATE_LIMIT"`
 }
 
 type Agent struct {
@@ -201,22 +204,34 @@ func (a *Agent) PostMetrics(types string) error {
 
 func (a *Agent) RunAgent(pollInterval, reportInterval int) {
 	rI := time.NewTicker(time.Duration(reportInterval) * time.Second)
-	pI := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	//pI := time.NewTicker(time.Duration(pollInterval) * time.Second)
 	attempts := 3
 	duration := 1
 
+	g, _ := errgroup.WithContext(context.Background())
+	//
+
+	go func(d time.Duration) {
+		time.Sleep(d)
+		a.Metrics.MetricGenerator(runtime.MemStats{})
+	}(time.Duration(a.Config.PollInterval) * time.Second)
+
 	for {
 		select {
-		case <-pI.C:
-			a.Metrics.MetricGenerator(runtime.MemStats{})
+		//case <-pI.C:
+		//	go a.Metrics.MetricGenerator(runtime.MemStats{})
 		case <-rI.C:
-			err := db.Retry(attempts, time.Duration(duration), func() error {
-				err := a.PostMetrics("url")
-				return err
+			g.Go(func() error {
+				err := db.Retry(attempts, time.Duration(duration), func() error {
+					err := a.PostMetrics("url")
+					return err
+				})
+				if err != nil {
+					return err
+				}
+				return nil
 			})
-			if err != nil {
-				log.Print(err)
-			}
 		}
+
 	}
 }

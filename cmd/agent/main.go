@@ -19,6 +19,8 @@ func main() {
 		"An address the server will send metrics")
 	flag.StringVar(&cfg.Key, "k", "someKey",
 		"Key for encrypting")
+	flag.IntVar(&cfg.RateLimit, "l", 3,
+		"Rate limiter")
 	flag.Parse()
 
 	err := env.Parse(&cfg)
