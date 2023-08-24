@@ -203,13 +203,12 @@ func (a *Agent) PostMetrics(types string) error {
 }
 
 func (a *Agent) RunAgent(pollInterval, reportInterval int) {
-	rI := time.NewTicker(time.Duration(reportInterval) * time.Second)
+	//rI := time.NewTicker(time.Duration(reportInterval) * time.Second)
 	//pI := time.NewTicker(time.Duration(pollInterval) * time.Second)
 	attempts := 3
 	duration := 1
 
 	g, _ := errgroup.WithContext(context.Background())
-	//
 
 	go func(d time.Duration) {
 		time.Sleep(d)
@@ -217,21 +216,17 @@ func (a *Agent) RunAgent(pollInterval, reportInterval int) {
 	}(time.Duration(a.Config.PollInterval) * time.Second)
 
 	for {
-		select {
-		//case <-pI.C:
-		//	go a.Metrics.MetricGenerator(runtime.MemStats{})
-		case <-rI.C:
-			g.Go(func() error {
-				err := db.Retry(attempts, time.Duration(duration), func() error {
-					err := a.PostMetrics("url")
-					return err
-				})
-				if err != nil {
-					return err
-				}
-				return nil
+		<-time.After(time.Duration(reportInterval) * time.Second)
+		g.Go(func() error {
+			err := db.Retry(attempts, time.Duration(duration), func() error {
+				err := a.PostMetrics("url")
+				return err
 			})
-		}
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 
 	}
 }
