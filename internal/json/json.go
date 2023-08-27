@@ -191,3 +191,22 @@ func ListCreator(gm map[string]float64, cm map[string]int64) ([]byte, error) {
 
 	return []byte(output), nil
 }
+
+func MetricListCreator(gm map[string]float64, cm map[string]int64) ([]Metrics, error) {
+
+	var metrics []Metrics
+
+	ms, err := ListCreator(gm, cm)
+
+	if err != nil {
+		return nil, err
+	}
+
+	errJSON := json.Unmarshal(ms, &metrics)
+	if errJSON != nil {
+		return nil, err
+	}
+
+	return metrics, nil
+
+}

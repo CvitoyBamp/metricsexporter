@@ -42,6 +42,9 @@ func (s *CustomServer) MetricRouter() chi.Router {
 
 	r.Group(func(r chi.Router) {
 		r.Use(cors.Handler)
+		if s.Config.Key != "" {
+			r.Use(middlewares.MiddlewareHash(s.Config.Key))
+		}
 		r.Use(middlewares.MiddlewareZIP)
 		//r.Use(middleware.Compress(5, "application/json", "text/html; charset=UTF-8"))
 		r.Route("/", func(r chi.Router) {

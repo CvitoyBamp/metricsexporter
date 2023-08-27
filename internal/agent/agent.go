@@ -2,34 +2,48 @@ package agent
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"github.com/CvitoyBamp/metricsexporter/internal/crypto"
 	"github.com/CvitoyBamp/metricsexporter/internal/db"
 	"github.com/CvitoyBamp/metricsexporter/internal/json"
 	"github.com/CvitoyBamp/metricsexporter/internal/metrics"
 	"github.com/CvitoyBamp/metricsexporter/internal/middlewares"
+	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 )
+
+type Config struct {
+	Address        string `env:"ADDRESS"`
+	ReportInterval int    `env:"REPORT_INTERVAL"`
+	PollInterval   int    `env:"POLL_INTERVAL"`
+	Key            string `env:"KEY"`
+	RateLimit      int    `env:"RATE_LIMIT"`
+}
 
 type Agent struct {
 	Client   *http.Client
 	Endpoint string
 	Metrics  *metrics.Metrics
+	Config   *Config
 }
 
-func CreateAgent(endpoint string) *Agent {
+func CreateAgent(cfg Config) *Agent {
 	return &Agent{
 		Client: &http.Client{
 			Timeout: 1 * time.Second,
 		},
-		Endpoint: endpoint,
+		Endpoint: cfg.Address,
 		Metrics: &metrics.Metrics{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
 		},
+		Config: &cfg,
 	}
 }
 
@@ -82,11 +96,16 @@ func (a *Agent) PostMetricJSON(metricType, metricName, metricValue string) error
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
 
+	if a.Config.Key != "" {
+		req.Header.Set("HashSHA256", fmt.Sprintf("%x", crypto.CreateHash(compressedData, a.Config.Key)))
+	}
+
 	res, err := a.Client.Do(req)
 	if err != nil {
 		log.Printf("metric %s with value %s was wasn't posted to %s\n", metricName, metricValue, url)
 		return fmt.Errorf("can't POST to URL, err: %v", err)
 	}
+
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
@@ -123,6 +142,10 @@ func (a *Agent) PostMetricsBatch() error {
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
 
+	if a.Config.Key != "" {
+		req.Header.Set("HashSHA256", fmt.Sprintf("%x", crypto.CreateHash(compressedData, a.Config.Key)))
+	}
+
 	res, err := a.Client.Do(req)
 	if err != nil {
 		log.Printf("can't POST batch of metrics")
@@ -139,9 +162,7 @@ func (a *Agent) PostMetricsBatch() error {
 	return nil
 }
 
-func (a *Agent) PostMetrics(types string) error {
-	a.Metrics.RLock()
-	defer a.Metrics.RUnlock()
+func (a *Agent) PostMetrics(types string, metrics <-chan json.Metrics, done chan<- bool) error {
 
 	if types == "batch" {
 		err := a.PostMetricsBatch()
@@ -150,55 +171,107 @@ func (a *Agent) PostMetrics(types string) error {
 		}
 	}
 
-	for k, v := range a.Metrics.Gauge {
+	for metric := range metrics {
+
 		if types == "json" {
-			err := a.PostMetricJSON("gauge", k, strconv.FormatFloat(v, 'f', -1, 64))
-			if err != nil {
-				return fmt.Errorf("can't POST to URL, err: %v", err)
+			if metric.MType == "gauge" {
+				err := a.PostMetricJSON(metric.MType, metric.ID, strconv.FormatFloat(*metric.Value, 'f', -1, 64))
+				if err != nil {
+					return fmt.Errorf("can't POST to URL, err: %v", err)
+				}
 			}
+
+			if metric.MType == "counter" {
+				err := a.PostMetricJSON(metric.MType, metric.ID, strconv.FormatInt(*metric.Delta, 10))
+				if err != nil {
+					return fmt.Errorf("can't POST to URL, err: %v", err)
+				}
+			}
+
 		}
+
 		if types == "url" {
-			err := a.PostMetricURL("gauge", k, strconv.FormatFloat(v, 'f', -1, 64))
-			if err != nil {
-				return fmt.Errorf("can't POST to URL, err: %v", err)
+			if metric.MType == "gauge" {
+				err := a.PostMetricURL(metric.MType, metric.ID, strconv.FormatFloat(*metric.Value, 'f', -1, 64))
+				if err != nil {
+					return fmt.Errorf("can't POST to URL, err: %v", err)
+				}
+			}
+
+			if metric.MType == "counter" {
+				err := a.PostMetricURL(metric.MType, metric.ID, strconv.FormatInt(*metric.Delta, 10))
+				if err != nil {
+					return fmt.Errorf("can't POST to URL, err: %v", err)
+				}
 			}
 		}
+
+		done <- true
 	}
-	for k, v := range a.Metrics.Counter {
-		if types == "json" {
-			err := a.PostMetricJSON("counter", k, strconv.FormatInt(v, 10))
-			if err != nil {
-				return fmt.Errorf("can't POST to URL, err: %v", err)
-			}
-		}
-		if types == "url" {
-			err := a.PostMetricURL("counter", k, strconv.FormatInt(v, 10))
-			if err != nil {
-				return fmt.Errorf("can't POST to URL, err: %v", err)
-			}
-		}
-	}
+
 	return nil
 }
 
 func (a *Agent) RunAgent(pollInterval, reportInterval int) {
-	rI := time.NewTicker(time.Duration(reportInterval) * time.Second)
-	pI := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	//rI := time.NewTicker(time.Duration(reportInterval) * time.Second)
+	//pI := time.NewTicker(time.Duration(pollInterval) * time.Second)
 	attempts := 3
 	duration := 1
 
+	var wg sync.WaitGroup
+
+	g, _ := errgroup.WithContext(context.Background())
+
+	go func(d time.Duration) {
+		time.Sleep(d)
+		a.Metrics.RuntimeMetricGenerator(runtime.MemStats{})
+	}(time.Duration(a.Config.PollInterval) * time.Second)
+
+	go func(d time.Duration) {
+		time.Sleep(d)
+		a.Metrics.GopsMetricGenerator()
+	}(time.Duration(a.Config.PollInterval) * time.Second)
+
+	go func(d time.Duration) {
+		time.Sleep(d)
+		a.Metrics.AdditionalMetricGenerator()
+	}(time.Duration(a.Config.PollInterval) * time.Second)
+
 	for {
-		select {
-		case <-pI.C:
-			a.Metrics.MetricGenerator(runtime.MemStats{})
-		case <-rI.C:
-			err := db.Retry(attempts, time.Duration(duration), func() error {
-				err := a.PostMetrics("url")
-				return err
-			})
-			if err != nil {
-				log.Print(err)
-			}
+		<-time.After(time.Duration(reportInterval) * time.Second)
+
+		ms, errJSON := json.MetricListCreator(a.Metrics.Gauge, a.Metrics.Counter)
+
+		if errJSON != nil {
+			log.Print(errJSON)
 		}
+
+		jobs := make(chan json.Metrics, len(ms))
+		done := make(chan bool, len(ms))
+
+		for w := 0; w <= a.Config.RateLimit; w++ {
+			wg.Add(1)
+			g.Go(func() error {
+				err := db.Retry(attempts, time.Duration(duration), func() error {
+					err := a.PostMetrics("batch", jobs, done)
+					return err
+				})
+				if err != nil {
+					return err
+				}
+				return nil
+			})
+		}
+
+		for _, m := range ms {
+			jobs <- m
+		}
+
+		close(jobs)
+
+		for range ms {
+			<-done
+		}
+		wg.Done()
 	}
 }
