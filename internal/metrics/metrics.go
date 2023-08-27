@@ -61,8 +61,8 @@ func getGopsMetrics() *LiveMetrics {
 		log.Printf("can't get gops metrics, err: %v", err.Error())
 	}
 
-	//liveMetrics.Lock()
-	//defer liveMetrics.Unlock()
+	gopsMetrics.Lock()
+	defer gopsMetrics.Unlock()
 	gopsMetrics.m["TotalMemory"] = float64(v.Total)
 	gopsMetrics.m["FreeMemory"] = float64(v.Free)
 	gopsMetrics.m["CPUutilization1 "] = v.UsedPercent
@@ -70,7 +70,7 @@ func getGopsMetrics() *LiveMetrics {
 	return gopsMetrics
 }
 
-func (ms *Metrics) MetricGenerator(rm runtime.MemStats) {
+func (ms *Metrics) RuntimeMetricGenerator(rm runtime.MemStats) {
 	runtime.ReadMemStats(&rm)
 
 	ms.Lock()
@@ -78,10 +78,19 @@ func (ms *Metrics) MetricGenerator(rm runtime.MemStats) {
 	for k, v := range getRuntimeMetrics(&rm).m {
 		ms.Gauge[k] = v
 	}
+}
+
+func (ms *Metrics) GopsMetricGenerator() {
+	ms.Lock()
+	defer ms.Unlock()
 	for k, v := range getGopsMetrics().m {
 		ms.Gauge[k] = v
 	}
+}
+
+func (ms *Metrics) AdditionalMetricGenerator() {
+	ms.Lock()
+	defer ms.Unlock()
 	ms.Gauge["RandomValue"] = rand.Float64()
 	ms.Counter["PollCount"] += 1
-
 }

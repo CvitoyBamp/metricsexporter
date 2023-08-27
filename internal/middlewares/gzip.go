@@ -42,6 +42,7 @@ func MiddlewareZIP(h http.Handler) http.Handler {
 		//}
 
 		res.Header().Set("Content-Encoding", "gzip")
+
 		h.ServeHTTP(gzipWriter{ResponseWriter: res, Writer: gz}, req)
 	}
 	return http.HandlerFunc(zip)
