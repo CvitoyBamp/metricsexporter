@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -23,13 +24,13 @@ func TestCreateHash(t *testing.T) {
 				data: []byte("Это тест функции"),
 				key:  "тест",
 			},
-			wants: "3db5c4e0a18ba507a933bac29fb9554d627d457342554db245e0c9efe5651a9b",
+			wants: "a605da4faa96f24b8323cd8aea5842164d13ecc71900e0cac7976c0d110a5438",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
 			td := CreateHash(tt.data.data, tt.data.key)
-			assert.Equal(t, tt.wants, td)
+			assert.Equal(t, tt.wants, fmt.Sprintf("%x", td))
 		})
 	}
 }

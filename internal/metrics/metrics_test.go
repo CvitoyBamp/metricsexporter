@@ -37,7 +37,9 @@ func TestMetrics_MetricGenerator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			tt.metricsTest.MetricGenerator(*tt.memStats)
+			tt.metricsTest.RuntimeMetricGenerator(*tt.memStats)
+			tt.metricsTest.AdditionalMetricGenerator()
+			tt.metricsTest.GopsMetricGenerator()
 			_, pc := tt.metricsTest.Counter["PollCount"]
 			assert.Equal(t, tt.wants.hasCustomCounterMetric, pc)
 			_, ta := tt.metricsTest.Gauge["TotalAlloc"]
